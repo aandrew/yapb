@@ -4,9 +4,18 @@ This is a fork of yapb/yapb. `origin` is aandrew/yapb; `upstream` is yapb/yapb.
 See docs/jev-mvp.md for setup, protocol, acceptance, and current limits.
 
 - Preserve the upstream bot behaviour when yb_systemone is disabled.
-- The first scenario is standard de_dust2 and exactly five live CT bots.
+- The first scenario is standard de_dust2 and five configured CT identities.
+  Dead or disconnected identities stay in the roster; never renumber them.
 - Every offered and applied deployment must contain exactly three A and two B
   assignments. Use one team-level choice, not independent per-bot choices.
+- Author roster/roles in bridge/config/roster.json and exact named targets in
+  bridge/config/de_dust2.positions.json. Runtime files are generated from these.
+- Fine callout boundaries in bridge/config/de_dust2.areas.json are drafts, not
+  approved standing positions. Keep unknown locations unmapped. Respect height
+  ranges for overlapping floors and the source graph hash when using node IDs.
+- Keep ten-second polling bounded to one immutable snapshot and one in-flight
+  request. Failed updates retain prior orders; round/roster changes invalidate
+  old replies. Repeated polls must not repeat round-start announcements.
 - Keep API requests outside the engine thread. Never send entity pointers or
   hidden enemy state. Validate round/request/nonce, roster membership, and expiry.
 - bridge/.env and all runtime/log files are private. Never commit credentials or

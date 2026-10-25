@@ -351,6 +351,10 @@ void Bot::CompleteTask () {
 void Bot::TaskNormal () {
   aim_flags_ |= AimFlags::Nav;
 
+  if (system_one.HoldPosition (this)) {
+    return;
+  }
+
   const int assigned_goal = system_one.Goal (index_);
   const int debug_goal = graph.Exists (assigned_goal) ? assigned_goal : cv_debug_goal.As<int> ();
 

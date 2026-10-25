@@ -3,8 +3,9 @@
 
 ## Jev local MVP
 
-This fork adds a local System One integration: CT bots split three to A and two
-to B on Dust2 and announce their assignments. See [setup and verification](docs/jev-mvp.md).
+This fork adds stable bot identities and roles, editable named positions, Dust2
+callout areas, and Jev placement updates every ten seconds. CT assignments retain
+the three-A/two-B rule. See [setup and verification](docs/jev-mvp.md).
 
 ## ☉ About
 It's a computer controlled players (bots) for the Counter-Strike b6.5 - 1.6 and Counter-Strike: Condition Zero. Bots allows you to play that games without connecting any game server or even without internet.

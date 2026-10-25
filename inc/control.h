@@ -133,6 +133,8 @@ public:
 
 private:
   CommandResult CmdAddBot ();
+  CommandResult CmdJevStatus ();
+  CommandResult CmdJevOrder ();
   CommandResult CmdKickBot ();
   CommandResult CmdKickBots ();
   CommandResult CmdKillBots ();

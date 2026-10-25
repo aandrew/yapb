@@ -1,7 +1,8 @@
 import {readFileSync,writeFileSync,mkdirSync,existsSync,cpSync,copyFileSync} from 'node:fs';
-import {randomBytes} from 'node:crypto';
+import {randomBytes,createHash} from 'node:crypto';
 import {dirname,resolve,join} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {loadConfig,engineConfig} from './config.mjs';
 const bridge=dirname(fileURLToPath(import.meta.url));
 const repo=resolve(bridge,'..');
 const workspace=resolve(repo,'..');
@@ -19,6 +20,11 @@ cpSync(join(repo,'cfg','addons','yapb'),join(mod,'addons','yapb'),{recursive:tru
 for(const dir of ['bin','data/graph','data/train','data/pwf','logs'])mkdirSync(join(mod,'addons','yapb',dir),{recursive:true});
 copyFileSync(join(repo,'build','local','yapb.dll'),join(mod,'addons','yapb','bin','yapb.dll'));
 copyFileSync(join(workspace,'work','assets','de_dust2.graph'),join(mod,'addons','yapb','data','graph','de_dust2.graph'));
+const catalogue=JSON.parse(readFileSync(join(bridge,'config','de_dust2.areas.json'),'utf8'));
+const graphHash=createHash('sha256').update(readFileSync(join(workspace,'work','assets','de_dust2.graph'))).digest('hex');
+if(graphHash!==catalogue.graph_sha256)console.warn('Callout waypoint IDs need regeneration for this graph. Spatial callout boundaries remain drafts.');
+const {roster,map}=loadConfig();
+writeFileSync(join(mod,'addons','yapb','conf','systemone.cfg'),engineConfig(roster,map));
 // Dedicated development configuration only; the normal Steam installation is untouched.
 const server=`hostname "YaPB Jev Local MVP"\nsv_lan 1\nrcon_password "${password}"\nmp_autoteambalance 0\nmp_limitteams 0\nmp_freezetime 8\nmp_roundtime 3\nmp_timelimit 0\nmp_startmoney 16000\nmp_logmessages 1\nlog on\nyb_systemone 1\nyb_quota 0\nyb_autovacate 0\nyb_kick_after_player_connect 0\nyb_save_bots 0\nyb_threadpool_workers 0\nyb_chat 1\nyb_radio_mode 0\nyb_user_follow_percent 0\nyb_display_welcome_text 0\nyb_graph_url ""\nyb_graph_url_upload ""\n`;
 writeFileSync(join(mod,'jev_local.cfg'),server);

@@ -1,0 +1,11 @@
+{
+  "map":"de_dust2",
+  "description":"Starter calibrated positions, not a complete community callout catalogue. Replace or extend with validated map data later.",
+  "positions":[
+    {"id":"a_anchor","site":"A","origin":[1152,2464,144],"look_at":[650,1800,144],"radius":40,"stance":"stand","preferred_roles":["awper","support"]},
+    {"id":"a_crossfire","site":"A","origin":[1280,2368,144],"look_at":[1450,1200,100],"radius":40,"stance":"stand","preferred_roles":["lurker","support"]},
+    {"id":"a_close_cover","site":"A","origin":[1024,2368,144],"look_at":[650,1800,144],"radius":40,"stance":"stand","preferred_roles":["entry","support"]},
+    {"id":"b_anchor","site":"B","origin":[-1536,2688,48],"look_at":[-1850,1700,48],"radius":40,"stance":"stand","preferred_roles":["awper","support"]},
+    {"id":"b_crossfire","site":"B","origin":[-1408,2592,48],"look_at":[-1000,2200,48],"radius":40,"stance":"stand","preferred_roles":["lurker","entry","support"]}
+  ]
+}

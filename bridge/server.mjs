@@ -3,6 +3,7 @@ import {appendFileSync, mkdirSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {dirname, join} from 'node:path';
 import {decide, validateState, wireReply} from './decision.mjs';
+import {enrichState} from './areas.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 mkdirSync(join(root,'logs'), {recursive:true});
@@ -17,9 +18,9 @@ function record(event) {
 socket.on('message', async (buffer, peer) => {
   if (peer.address !== '127.0.0.1' || buffer.length > 16384) return;
   let state;
-  try { state = validateState(JSON.parse(buffer)); } catch { return; }
+  try { state = enrichState(validateState(JSON.parse(buffer))); } catch { return; }
   if (state.event === 'telemetry') { record({event:'telemetry',state}); return; }
-  const key = `${peer.port}:${state.request}:${state.nonce}`;
+  const key = `${peer.port}:${state.round}:${state.request}:${state.nonce}:${state.roster_revision}`;
   if (seen.has(key)) {
     const reply=seen.get(key);
     if (reply) socket.send(reply, peer.port, peer.address);
@@ -36,10 +37,10 @@ socket.on('message', async (buffer, peer) => {
     const reply=Buffer.from(wireReply(state,result.plan));
     seen.set(key,reply);
     socket.send(reply, peer.port, peer.address);
-    record({event:'decision',request:state.request,nonce:state.nonce,latency_ms:Math.round(performance.now()-start),...result});
+    record({event:'decision',round:state.round,request:state.request,nonce:state.nonce,roster_revision:state.roster_revision,state_event:state.event,game_time:state.game_time,latency_ms:Math.round(performance.now()-start),...result});
   } catch (error) {
     // Never log request headers, credentials, or raw provider errors.
-    record({event:'fallback',request:state.request,error:error.message});
+    record({event:'fallback',round:state.round,request:state.request,nonce:state.nonce,error:error.message});
   } finally { busy=false; }
 });
 socket.on('error', error => { console.error(error.code); socket.close(); process.exitCode=1; });

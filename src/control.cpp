@@ -56,6 +56,21 @@ CommandResult Control::CmdAddBot () {
   return CommandResult::Handled;
 }
 
+CommandResult Control::CmdJevStatus () {
+  system_one.PrintStatus ();
+  return CommandResult::Handled;
+}
+
+CommandResult Control::CmdJevOrder () {
+  if (!system_one.AssignNamed (Arg<ystl::StringRef> (2), Arg<ystl::StringRef> (3))) {
+    Msg ("Order rejected: use a configured stable identity and named position while Jev deployment is active.");
+  }
+  else {
+    Msg ("Named order applied; occupied positions were exchanged to preserve 3 A / 2 B.");
+  }
+  return CommandResult::Handled;
+}
+
 CommandResult Control::CmdKickBot () {
   enum args {
     alias = 1,
@@ -3069,6 +3084,8 @@ void Control::RegisterCommands () {
     &Control::CmdDebugTranslate);
 
   // build main commands - use emplace to construct in-place
+  cmds_.emplace ("jev_status", "jev_status", "Show stable Jev identities, roles, entity bindings and named positions.", &Control::CmdJevStatus);
+  cmds_.emplace ("jev_order", "jev_order <stable_id> <position>", "Assign a named position by stable identity, preserving the team split.", &Control::CmdJevOrder);
   cmds_.emplace ("add/addbot/add_ct/addbot_ct/add_t/addbot_t/addhs/addhs_t/addhs_ct", "add [difficulty] [personality] [team] [model] [name]",
     "Adding specific bot into the game.", &Control::CmdAddBot);
 
