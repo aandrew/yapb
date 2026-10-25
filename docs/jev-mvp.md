@@ -16,7 +16,7 @@ Clone this fork recursively. Keep the source in a `yapb` directory with its
 parent available for the `work` directory used by the local scripts.
 
 ```powershell
-git clone --recursive https://github.com/aandrew/yapb.git
+git clone --recursive --branch jev-mvp https://github.com/aandrew/yapb.git
 cd yapb
 ./tools/setup-local.ps1
 # Edit bridge/.env and set OPENROUTER_API_KEY. Never commit this file.
