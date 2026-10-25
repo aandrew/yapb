@@ -20,7 +20,12 @@ See docs/jev-mvp.md for setup, protocol, acceptance, and current limits.
   approved standing positions. Keep unknown locations unmapped. Respect height
   ranges for overlapping floors and the source graph hash when using node IDs.
 - Caller is an overlay on a combat role. Lock each T site and rush/45–80 second
-  attack delay once per round, measured after freeze. Clear in stages until the
+  attack delay once per round, measured after freeze. Run with guns to ready
+  points, sneak only near quiet chokepoints, and run once exposed. At most one
+  non-C4 bot may fake outside the other site before rejoining on execute.
+  Keep caller succession and its chat announcement when a caller dies.
+  Avoid semicolons in chat (the fake-command parser splits at them).
+  Clear in stages until the
   deadline, then execute. Entry is an aggressive disposition, not a mandatory
   lead position; never hold supports back to enforce entry-first movement.
 - Keep ten-second polling bounded to one immutable snapshot and one in-flight

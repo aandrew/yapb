@@ -190,6 +190,7 @@ void SystemOne::NewRound () {
   round_time_ = game.Time ();
   next_poll_ = round_time_ + 0.5f;
   next_telemetry_ = next_chat_ = next_roster_maintain_ = 0.0f;
+  t_compromised_ = fake_chosen_ = false; fake_member_ = -1; last_caller_ = -2;
   t_locked_ = false; attack_delay_ = -1; t_stage_ = 0; t_target_ = '-'; attack_time_ = stage_ready_time_ = 0.0f;
   event_count_ = ct_deaths_ = t_deaths_ = event_revision_ = 0;
   bomb_seen_time_ = -100.0f;
@@ -292,6 +293,35 @@ int SystemOne::Caller () const {
   return fallback;
 }
 
+int SystemOne::FakeMember () const {
+  if (fake_member_ < 0) { return -1; }
+  auto *player = Player (fake_member_);
+  return player != nullptr && game.IsAliveEntity (player->Ent ()) && !player->has_c4_ ? fake_member_ : -1;
+}
+
+int SystemOne::FakePosition (char site) const {
+  const char *name = site == 'A' ? "t_b_1_entry" : "t_a_1_entry";
+  for (int i = 0; i < position_count_; ++i) { if (ystl::StringRef (positions_[i].id) == name) { return i; } }
+  return -1;
+}
+
+const char *SystemOne::PositionLabel (int position) const {
+  if (position < 0 || position >= position_count_) { return "team ready point"; }
+  const auto &p = positions_[position];
+  const auto id = ystl::StringRef (p.id);
+  if (id.starts_with ("t_a_")) {
+    if (id.ends_with ("lurker")) { return p.stage == 0 ? "Top Mid" : (p.stage == 1 ? "Catwalk" : "A Short"); }
+    if (p.stage == 0) { return "Outside Long"; }
+    if (p.stage == 1) { return id.ends_with ("entry") ? "Long Doors" : "Outside Long"; }
+    return id.ends_with ("entry") ? "Long Corner" : "Long Blue Box";
+  }
+  if (id.starts_with ("t_b_")) {
+    if (id.ends_with ("lurker")) { return p.stage == 0 ? "Top Mid" : (p.stage == 1 ? "Lower Tunnels" : "B Doors"); }
+    return p.stage == 0 ? "Outside Tunnels" : (p.stage == 1 ? "Upper Tunnels" : "B Tunnel Exit");
+  }
+  return p.site == 'A' ? "A Site" : (p.site == 'B' ? "B Site" : "Mid");
+}
+
 void SystemOne::TeamChat (ystl::StringRef message) {
   const int caller = Caller ();
   if (caller != -1) { Player (caller)->SendToChat (message, true); return; }
@@ -362,8 +392,9 @@ ystl::String SystemOne::BuildState (bool telemetry) {
   else if (evidence.bomb_recent) {
     payload.appendf (",\"origin\":[%.1f,%.1f,%.1f]", bomb_seen_origin_.x, bomb_seen_origin_.y, bomb_seen_origin_.z);
   }
-  payload.appendf ("},\"t_plan\":{\"locked\":%s,\"target_site\":\"%c\",\"attack_delay\":%d,\"attack_at\":%.2f,\"elapsed\":%.2f,\"stage\":%d},\"round_events\":[",
-    t_locked_ ? "true" : "false", t_target_, attack_delay_, attack_time_, game.Time () - game_state.GetRoundStartTime (), t_stage_);
+  payload.appendf ("},\"t_plan\":{\"locked\":%s,\"target_site\":\"%c\",\"attack_delay\":%d,\"attack_at\":%.2f,\"elapsed\":%.2f,\"stage\":%d,\"fake_id\":\"%s\",\"compromised\":%s},\"round_events\":[",
+    t_locked_ ? "true" : "false", t_target_, attack_delay_, attack_time_, game.Time () - game_state.GetRoundStartTime (), t_stage_,
+    FakeMember () >= 0 ? identities_[FakeMember ()].id : "", t_compromised_ ? "true" : "false");
   first = true;
   const int count = ystl::min (event_count_, 32);
   for (int i = 0; i < count; ++i) {
@@ -428,14 +459,17 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
     const int stage = phase == CTPhase::TCall ? 0 : t_stage_;
     if (formation != (clearing ? stage : 0)) { return false; }
     for (int i = 0; i < 5; ++i) {
-      if (zones[i] != zone || (clearing && positions_[targets[i]].stage != stage)) { return false; }
+      if (clearing && i == FakeMember ()) {
+        if (targets[i] != FakePosition (site)) { return false; }
+      }
+      else if (zones[i] != zone || (clearing && positions_[targets[i]].stage != stage)) { return false; }
     }
     if (!t_locked_) {
       t_locked_ = true; t_target_ = site; attack_delay_ = timing;
       attack_time_ = game_state.GetRoundStartTime () + static_cast<float> (timing);
       const int caller = Caller ();
-      TeamChat (ystl::strings.format ("Caller %s: attack %c; %s at %02d:%02d after freeze. Entry plays aggressively; supports cover flanks; lurker uses an alternate route.",
-        caller >= 0 ? identities_[caller].id : "server", site, timing == 0 ? "rush" : "walk and clear, commit", timing / 60, timing % 60));
+      TeamChat (timing == 0 ? ystl::strings.format ("Caller %s: attack %c. Rush now, guns out!", caller >= 0 ? identities_[caller].id : "server", site) :
+        ystl::strings.format ("Caller %s: attack %c. Ready outside site. Execute %02d:%02d after freeze. Guns out.", caller >= 0 ? identities_[caller].id : "server", site, timing / 60, timing % 60));
       game.Print ("[Jev] T call target=%c delay=%d attack_at=%.2f", site, timing, attack_time_);
     }
   }
@@ -469,7 +503,8 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
     }
   }
   if (phase_changed && !opening) {
-    TeamChat (ystl::strings.format ("Caller: %s, target %c.", CTPhaseName (phase), site));
+    if (phase == CTPhase::TExecute) { TeamChat (ystl::strings.format ("Caller: execute %c NOW. Everyone move in. Fake rejoins attack.", site)); }
+    else if (phase != CTPhase::TClear) { TeamChat (ystl::strings.format ("Caller: %s, target %c.", CTPhaseName (phase), site)); }
   }
   if (opening) { next_chat_ = game.Time (); }
   next_telemetry_ = game.Time ();
@@ -500,6 +535,7 @@ void SystemOne::ApplyFallback () {
           if (!used) { ordered[member] = targets[candidate]; break; }
         }
       }
+      if (FakeMember () >= 0) { ordered[FakeMember ()] = FakePosition (site); }
       Apply (ordered, "policy_fallback", required_.phase, site, t_stage_, timing);
     }
     else if (count == 5) { Apply (targets, "policy_fallback", required_.phase, site, 0, timing); }
@@ -697,8 +733,22 @@ void SystemOne::RecordDeath (edict_t *killer, edict_t *victim) {
   ++event_revision_;
 }
 
+bool SystemOne::GunReady (int index) const {
+  return team_ == Team::Terrorist && Goal (index) != -1;
+}
+
 bool SystemOne::Cautious (int index) const {
-  return (ordered_.phase == CTPhase::Cautious || ordered_.phase == CTPhase::TClear) && Goal (index) != -1;
+  if (Goal (index) == -1) { return false; }
+  if (team_ == Team::CT) { return ordered_.phase == CTPhase::Cautious; }
+  if (ordered_.phase != CTPhase::TClear || t_compromised_ || IdentityFor (index) == FakeMember ()) { return false; }
+  auto *entity = Entity (IdentityFor (index));
+  if (entity == nullptr) { return false; }
+  for (int i = 0; i < position_count_; ++i) {
+    const auto &position = positions_[i];
+    if (position.site == t_target_ && position.stage >= 1 && ystl::StringRef (position.id).ends_with ("entry") &&
+        entity->v.origin.distance_sq (position.origin) <= ystl::sqrf (300.0f)) { return true; }
+  }
+  return false;
 }
 
 bool SystemOne::Planting (int index) const {
@@ -725,10 +775,10 @@ CTDecision SystemOne::TerroristState () {
     int entry = -1;
     for (int i = 0; i < 5; ++i) {
       auto *entity = Entity (i);
-      if (entity != nullptr && game.IsAliveEntity (entity) && ystl::StringRef (identities_[i].role) == "entry") { entry = i; break; }
+      if (i != FakeMember () && entity != nullptr && game.IsAliveEntity (entity) && ystl::StringRef (identities_[i].role) == "entry") { entry = i; break; }
     }
     if (entry == -1) {
-      for (int i = 0; i < 5; ++i) { auto *entity = Entity (i); if (entity != nullptr && game.IsAliveEntity (entity)) { entry = i; break; } }
+      for (int i = 0; i < 5; ++i) { auto *entity = Entity (i); if (i != FakeMember () && entity != nullptr && game.IsAliveEntity (entity)) { entry = i; break; } }
     }
     if (entry >= 0 && identities_[entry].position >= 0) {
       const auto &position = positions_[identities_[entry].position];
@@ -754,6 +804,40 @@ void SystemOne::Frame () {
   }
   SyncRoster ();
   MaintainRoster ();
+  const int caller = Caller ();
+  if (caller != last_caller_) {
+    if (applied_ && last_caller_ >= 0 && caller >= 0) {
+      TeamChat (team_ == Team::Terrorist ? ystl::strings.format ("%s taking over caller. Attack %c. Execute time unchanged.", identities_[caller].id, t_target_) :
+        ystl::strings.format ("%s taking over caller. Keep current defense orders.", identities_[caller].id));
+      game.Print ("[Jev] Caller team=%s identity=%s previous=%d", team_ == Team::CT ? "CT" : "T", caller >= 0 ? identities_[caller].id : "none", last_caller_);
+      pending_ = false; next_poll_ = game.Time ();
+    }
+    last_caller_ = caller;
+  }
+  if (team_ == Team::Terrorist) {
+    if (!fake_chosen_) {
+      bool ready = true;
+      for (int i = 0; i < 5; ++i) { ready &= Entity (i) != nullptr; }
+      if (ready) {
+        fake_chosen_ = true;
+        if (ystl::rg (0, 1) != 0) {
+          int candidates[5] {}, count = 0;
+          for (int i = 0; i < 5; ++i) { auto *player = Player (i); if (player != nullptr && game.IsAliveEntity (player->Ent ()) && !player->has_c4_) { candidates[count++] = i; } }
+          if (count > 0) { fake_member_ = candidates[ystl::rg (0, count - 1)]; }
+        }
+      }
+    }
+    if (!t_compromised_ && game.Time () >= game_state.GetRoundStartTime ()) {
+      for (int i = 0; i < 5; ++i) {
+        auto *entity = Entity (i); auto *player = Player (i);
+        if (entity != nullptr && game.IsAliveEntity (entity) && (entity->v.health < 100.0f ||
+            (entity->v.button & IN_ATTACK) != 0 || (player != nullptr && has_flag (player->states_, Sense::SeeingEnemy)))) {
+          t_compromised_ = true;
+          game.Print ("[Jev] T approach exposed; run to ready/execute positions."); break;
+        }
+      }
+    }
+  }
   const int previous_stage = t_stage_;
   const auto decision = team_ == Team::CT ? EvaluateCTState (Evidence ()) : TerroristState ();
   if (decision.phase != required_.phase || decision.site != required_.site || previous_stage != t_stage_) {
@@ -811,11 +895,24 @@ void SystemOne::Frame () {
       auto &identity = identities_[i];
       if (!identity.announced && Entity (i) != nullptr) {
         const auto &position = positions_[identity.position];
-        const auto message = ystl::strings.format ("%s: %s, going %c - %s.", identity.id, identity.role, position.zone, position.id);
-        if (identity.human) {
-          TeamChat (ystl::strings.format ("Caller: human %s, your role is %s; objective %s. Follow team calls.", identity.id, identity.role, position.id));
+        if (team_ == Team::Terrorist) {
+          int ready = identity.position;
+          if (i != FakeMember ()) {
+            for (int p = 0; p < position_count_; ++p) {
+              if (positions_[p].site == t_target_ && positions_[p].stage == 2 &&
+                  ystl::StringRef (positions_[p].preferred_roles) == identity.role) { ready = p; break; }
+            }
+          }
+          const ystl::String message = i == FakeMember () && attack_delay_ > 0 ?
+            ystl::strings.format ("%s %s: attack %c. Fake %c at %s. Stay OUTSIDE site and rejoin on execute.", identity.id, identity.role, t_target_, t_target_ == 'A' ? 'B' : 'A', PositionLabel (identity.position)) :
+            ystl::strings.format ("%s %s: attack %c. %s %s.", identity.id, identity.role, t_target_, attack_delay_ == 0 ? "rush" : "ready at", attack_delay_ == 0 ? PositionLabel (identity.position) : PositionLabel (ready));
+          if (identity.human) { TeamChat (ystl::strings.format ("Human role - %s", message.chars ())); }
+          else { Player (i)->SendToChat (message, true); }
         }
-        else { Player (i)->SendToChat (message, true); }
+        else if (identity.human) {
+          TeamChat (ystl::strings.format ("Caller: human %s, your role is %s; objective %s.", identity.id, identity.role, position.id));
+        }
+        else { Player (i)->SendToChat (ystl::strings.format ("%s: %s, going %c - %s.", identity.id, identity.role, position.site, position.id), true); }
         game.Print ("[Jev] Chat round=%d identity=%s role=%s site=%c position=%s", round_, identity.id, identity.role, position.zone, position.id);
         identity.announced = true;
         next_chat_ = game.Time () + 0.25f;

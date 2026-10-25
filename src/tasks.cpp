@@ -352,6 +352,8 @@ void Bot::CompleteTask () {
 void Bot::TaskNormal () {
   aim_flags_ |= AimFlags::Nav;
 
+  if (t_system_one.GunReady (index_) && UsesKnife () && HasAnyAmmo ()) { SelectBestWeapon (); }
+
   if (system_one.HoldPosition (this) || t_system_one.HoldPosition (this)) {
     return;
   }
@@ -617,12 +619,17 @@ void Bot::TaskNormal () {
       move_speed_ = min_speed_;
     }
   }
+  const bool t_moving = t_system_one.GunReady (index_);
+  if (t_moving && !t_system_one.Cautious (index_) && move_to_goal_ && move_speed_ > 0.0f && !IsDucking () &&
+      graph.Exists (assigned_goal) && pev->origin.distance_sq (graph[assigned_goal].origin) > ystl::sqrf (172.0f)) {
+    move_speed_ = pev->maxspeed;
+  }
   const float shift_speed = GetShiftSpeed ();
   if (system_one.Cautious (index_) || t_system_one.Cautious (index_)) {
     move_speed_ = ystl::clamp (move_speed_, -shift_speed, shift_speed);
   }
 
-  if ((!ystl::fzero (move_speed_) && move_speed_ > shift_speed) && (cv_walking_allowed && mp_footsteps) &&
+  if (!t_moving && (!ystl::fzero (move_speed_) && move_speed_ > shift_speed) && (cv_walking_allowed && mp_footsteps) &&
       rg.chance (ystl::max (25, Skill ())) && (heard_sound_timer_.less_than (6.0f) || has_flag (states_, Sense::HearingEnemy)) &&
       NumEnemiesNear (pev->origin, 1024.0f) >= 1 && !IsKnifeMode () && !game_state.IsBombPlanted ()) {
 

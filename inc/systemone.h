@@ -50,7 +50,11 @@ class SystemOne {
   char bomb_seen_site_ { '-' };
   CTDecision required_ {}, ordered_ {};
   int formation_ {}, defuser_ { -1 };
-  bool t_locked_ {};
+  bool t_locked_ {}, t_compromised_ {}, fake_chosen_ {};
+  int fake_member_ { -1 }, last_caller_ { -2 };
+  int FakeMember () const;
+  int FakePosition (char site) const;
+  const char *PositionLabel (int position) const;
   int attack_delay_ { -1 }, t_stage_ {};
   float attack_time_ {}, stage_ready_time_ {}, next_roster_maintain_ {};
   char t_target_ { '-' };
@@ -79,6 +83,7 @@ public:
   int Goal (int index) const;
   bool HoldPosition (Bot *bot) const;
   bool Cautious (int index) const;
+  bool GunReady (int index) const;
   bool Planting (int index) const;
   bool PlantAllowed (int index) const;
   void ObserveEnemy (Bot *observer, edict_t *enemy, const ystl::Vector &origin);

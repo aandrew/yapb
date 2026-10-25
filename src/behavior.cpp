@@ -1517,7 +1517,10 @@ void Bot::CheckSpawnConditions () {
         game.MapIs (MapFlags::HostageRescue | MapFlags::Demolition | MapFlags::Escape | MapFlags::Assassination)) {
 
       // 10% chance to switch to he grenade if bot has one
-      if (rg.chance (10) && has_flag (pev->weapons, ystl::bit (Weapon::Explosive))) {
+      if (t_system_one.GunReady (index_)) {
+        SelectBestWeapon ();
+      }
+      else if (rg.chance (10) && has_flag (pev->weapons, ystl::bit (Weapon::Explosive))) {
         SelectWeaponById (Weapon::Explosive);
       }
       // switch to knife (except scout snipers)

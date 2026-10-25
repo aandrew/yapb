@@ -49,8 +49,14 @@ coverage while gathering information instead of inventing a target.
 
 T has a caller overlay in addition to its combat role. Jev chooses A/B and either
 a rush or one offered random delay from 45 to 80 seconds **after freeze ends**.
-This time and target stay locked for the round. Before a delayed attack, bots
-walk and clear up to three authored approach stages; supports have flank-facing
+This time and target stay locked for the round. About half of delayed rounds optionally assign one random
+living bot without C4 to fake at the other site's Long Doors/Upper Tunnels
+approach. It holds outside that site and rejoins the main attack on execute.
+Rushes never split a fake. Humans are never automatically assigned the fake.
+Before a delayed attack, bots
+run with guns to three authored approach stages. Walking is limited to within
+300 units of a quiet approach chokepoint. Own-team firing, damage or enemy
+contact marks the approach exposed for the rest of the round, allowing running; supports have flank-facing
 posts and lurkers use alternate routes. At the deadline all are ordered directly
 to the chosen site. The C4 carrier may plant only after execution starts; after
 planting, teammates hold site positions. Entry is an aggressive disposition
@@ -59,7 +65,8 @@ forces teammates to wait behind the entry. Role preferences guide assignments;
 combat and navigation continue normally.
 
 Humans receive the same team calls and a once-per-round role announcement. A
-living configured caller speaks, with another living bot as fallback. An
+living configured caller speaks. If killed, another living bot takes over,
+announces the handoff and keeps the existing site and execute clock. An
 all-human team receives server team-chat advice.
 
 ## Configuration and protocol
@@ -86,7 +93,7 @@ fallbacks. Turning `yb_systemone` off restores upstream behavior.
 
 ```powershell
 node --env-file=bridge/.env bridge/control.mjs "yb jev_status"
-node --test bridge/test.mjs
+node --test bridge/test.mjs bridge/t-approach.test.mjs
 ./tools/test-round-policy.ps1
 node bridge/verify-local.mjs ../outputs/verification-v3.json
 ```
@@ -96,3 +103,7 @@ Do not publish `.env`, runtime logs or raw RCON console output: the latter can
 contain the local control password. The live verifier reports observed evidence
 separately from untested scenarios. Automated bridge tests and native CT policy
 assertions do not substitute for human movement/chat playtesting.
+
+T chat uses short messages with explicit A/B and readable ready points. Internal
+X/Y route codes are not displayed. Avoid semicolons in bot chat: the engine bot
+command parser splits commands at semicolons, including inside quoted messages.

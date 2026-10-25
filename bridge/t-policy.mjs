@@ -10,7 +10,10 @@ export function validateTPlan(state,plan){
   const zone=clearing?(plan.target_site==='A'?'X':'Y'):plan.target_site;
   const stage=plan.phase===6?0:t.stage;
   if(plan.formation!==(clearing?stage:0))throw new Error('invalid clearing stage');
-  if(targets.some(p=>p.zone!==zone||(clearing&&p.stage!==stage)))throw new Error('wrong route or attack stage');
+  if(targets.some((p,i)=>{
+    if(clearing&&state.bots[i].id===t.fake_id)return p.id!==`t_${plan.target_site==='A'?'b':'a'}_1_entry`;
+    return p.zone!==zone||(clearing&&p.stage!==stage);
+  }))throw new Error('wrong route or attack stage');
   return plan;
 }
 export function tPlans(state){
@@ -21,6 +24,9 @@ export function tPlans(state){
     const targets=state.positions.filter(p=>p.zone===zone&&(!clearing||p.stage===stage));
     const plan={phase,phase_name:phases[phase],target_site:site,formation:clearing?stage:0,timing,
       assignments:bestAssignment(state,targets,prefer)};
+    if(clearing&&t.fake_id&&state.bots.some(b=>b.id===t.fake_id&&!b.human&&b.alive)){
+      plan.assignments[t.fake_id]=`t_${site==='A'?'b':'a'}_1_entry`;
+    }
     validateTPlan(state,plan);plans[key]=plan;
   };
   if(!t.locked){
