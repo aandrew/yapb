@@ -68,6 +68,7 @@ class TickManager;
 #include "analyze.h"
 #include "fakeping.h"
 #include "funmode.h"
+#include "systemone.h"
 
 namespace bot {
 
@@ -86,6 +87,7 @@ public:
   friend class TickManager;
   friend class Practice;
   friend class DebugPanel;
+  friend class SystemOne;
 
   friend struct NavigateHook;
   friend struct ChatHook;

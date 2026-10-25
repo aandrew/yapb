@@ -145,6 +145,7 @@
     <ClCompile Include="..\src\storage.cpp" />
     <ClCompile Include="..\src\support.cpp" />
     <ClCompile Include="..\src\tasks.cpp" />
+    <ClCompile Include="..\src\systemone.cpp" />
     <ClCompile Include="..\src\vision.cpp" />
     <ClCompile Include="..\src\vistable.cpp" />
     <ClCompile Include="..\src\weapons.cpp" />

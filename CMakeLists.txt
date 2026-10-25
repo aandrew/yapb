@@ -83,6 +83,7 @@ include(YapbVersion)
 include(YapbFlags)
 
 set(SRC
+  "src/systemone.cpp"
   "src/analyze.cpp"
   "src/behavior.cpp"
   "src/buying.cpp"

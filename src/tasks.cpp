@@ -227,6 +227,13 @@ void Bot::ClearTasks () {
 }
 
 void Bot::StartTask (TaskId id, float desire, int data, float time, bool resume, bool preserve_goal) {
+  // The MVP keeps its site orders instead of chasing a last-seen enemy or
+  // accepting a conflicting movement/radio order. Immediate combat still runs.
+  if (system_one.Goal (index_) != kInvalidNodeIndex &&
+      (id == TaskId::Hunt || id == TaskId::FollowUser || id == TaskId::MoveTo || id == TaskId::Camp ||
+       id == TaskId::Pause || id == TaskId::Spraypaint)) {
+    return;
+  }
 
   // check entire stack for duplicate task (original behavior)
   auto *existing = tasks_.Find (id);
@@ -344,7 +351,8 @@ void Bot::CompleteTask () {
 void Bot::TaskNormal () {
   aim_flags_ |= AimFlags::Nav;
 
-  const int debug_goal = cv_debug_goal.As<int> ();
+  const int assigned_goal = system_one.Goal (index_);
+  const int debug_goal = graph.Exists (assigned_goal) ? assigned_goal : cv_debug_goal.As<int> ();
 
   // user forced a node as a goal?
   if (graph.Exists (debug_goal)) {

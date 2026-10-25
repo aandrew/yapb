@@ -258,6 +258,7 @@ Bot *Manager::FindAliveBot () {
 }
 
 void Manager::Frame () {
+  system_one.Frame ();
   // this function calls showframe function for all available at call moment bots
 
   // run the fun modes stuff
@@ -2457,6 +2458,7 @@ void Manager::SelectLeaders (Team team, bool reset) {
 }
 
 void Manager::InitRound () {
+  system_one.NewRound ();
   // this is called at the start of each round
 
   // check team economics

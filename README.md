@@ -1,6 +1,11 @@
 ## YaPB
 [![Latest YaPB](https://img.shields.io/github/v/release/yapb/yapb)](https://github.com/yapb/yapb/releases/latest) [![Latest YaPB](https://github.com/yapb/yapb/workflows/build/badge.svg)](https://github.com/yapb/yapb/actions) [![YaPB License](https://img.shields.io/github/license/yapb/yapb)](https://github.com/yapb/yapb/blob/master/UNLICENSE) [![Downloads](https://img.shields.io/github/downloads/yapb/yapb/total)](https://github.com/yapb/yapb/releases/latest)
 
+## Jev local MVP
+
+This fork adds a local System One integration: CT bots split three to A and two
+to B on Dust2 and announce their assignments. See [setup and verification](docs/jev-mvp.md).
+
 ## ☉ About
 It's a computer controlled players (bots) for the Counter-Strike b6.5 - 1.6 and Counter-Strike: Condition Zero. Bots allows you to play that games without connecting any game server or even without internet.
 

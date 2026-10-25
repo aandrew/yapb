@@ -14,6 +14,8 @@
 // behavior
 namespace bot {
 
+inline ConVar cv_systemone ("systemone", "0", "Enable the local Jev Dust2 CT 3-A/2-B deployment MVP.");
+
 inline ConVar cv_debug ("debug", "0", "Enables or disables useful messages about bot states. Not required for end users.", true, 0.0f, 4.0f);
 inline ConVar cv_debug_goal ("debug_goal", "-1", "Forces all alive bots to build a path and go to the graph node specified here.", true, -1.0f, kMaxNodes);
 inline ConVar cv_debug_overlay_color ("debug_overlay_color", "255 255 255", "Specifies the RGB color of the debug overlay text, e.g. '255 255 255'.", false);

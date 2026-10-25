@@ -64,3 +64,7 @@ desktop.ini
 # Package manager
 node_modules/
 *.log
+
+# Local System One bridge secrets and logs
+bridge/.env
+bridge/logs/

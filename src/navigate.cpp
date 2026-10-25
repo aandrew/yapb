@@ -36,6 +36,9 @@ bool Bot::ShouldRushEndgameTime () const {
 }
 
 int Bot::FindBestGoal () {
+  if (const int assigned = system_one.Goal (index_); graph.Exists (assigned)) {
+    return assigned;
+  }
   if (game.Is (GameFlags::ZombieMod) && is_creature_) {
     const auto &[ts, cts] = bots.CountTeamPlayers ();
 
