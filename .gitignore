@@ -68,3 +68,5 @@ node_modules/
 # Local System One bridge secrets and logs
 bridge/.env
 bridge/logs/
+__pycache__/
+*.pyc

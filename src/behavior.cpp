@@ -2666,7 +2666,7 @@ void Bot::DonateC4ToHuman () {
 }
 
 void Bot::DecideFollowUser () {
-  if (system_one.Goal (index_) != kInvalidNodeIndex) {
+  if (system_one.Goal (index_) != kInvalidNodeIndex || t_system_one.Goal (index_) != kInvalidNodeIndex) {
     return;
   }
   // this function forces bot to follow user

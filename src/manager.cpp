@@ -259,6 +259,7 @@ Bot *Manager::FindAliveBot () {
 
 void Manager::Frame () {
   system_one.Frame ();
+  t_system_one.Frame ();
   // this function calls showframe function for all available at call moment bots
 
   // run the fun modes stuff
@@ -497,6 +498,7 @@ void Manager::MaintainQuota () {
     return;
   }
   int desired_bot_count = cv_quota.As<int> ();
+  if (cv_systemone) { return; } // Named directors own the five-player CT/T rosters.
 
   // only assign if out of range
   if (desired_bot_count < 0 || desired_bot_count > max_clients) {
@@ -2459,6 +2461,7 @@ void Manager::SelectLeaders (Team team, bool reset) {
 
 void Manager::InitRound () {
   system_one.NewRound ();
+  t_system_one.NewRound ();
   // this is called at the start of each round
 
   // check team economics

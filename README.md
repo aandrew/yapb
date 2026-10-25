@@ -4,8 +4,8 @@
 ## Jev local MVP
 
 This fork adds stable bot identities and roles, editable named positions, Dust2
-callout areas, and Jev placement updates every ten seconds. CT assignments retain
-the three-A/two-B rule. See [setup and verification](docs/jev-mvp.md).
+callout areas, and Jev decisions every ten seconds. CT defense and rotations, T
+caller-selected timed attacks, and human role advice run in a local 5v5 match. See [setup and verification](docs/jev-mvp.md).
 
 ## ☉ About
 It's a computer controlled players (bots) for the Counter-Strike b6.5 - 1.6 and Counter-Strike: Condition Zero. Bots allows you to play that games without connecting any game server or even without internet.

@@ -9,14 +9,14 @@ const root = dirname(fileURLToPath(import.meta.url));
 mkdirSync(join(root,'logs'), {recursive:true});
 const socket = dgram.createSocket('udp4');
 const seen = new Map();
-let busy = false;
+const busy = new Set();
 function record(event) {
   const row = {time:new Date().toISOString(), ...event};
   appendFileSync(join(root,'logs','decisions.jsonl'), JSON.stringify(row)+'\n');
   console.log(JSON.stringify(row));
 }
 socket.on('message', async (buffer, peer) => {
-  if (peer.address !== '127.0.0.1' || buffer.length > 16384) return;
+  if (peer.address !== '127.0.0.1' || buffer.length > 60000) return;
   let state;
   try { state = enrichState(validateState(JSON.parse(buffer))); } catch { return; }
   if (state.event === 'telemetry') { record({event:'telemetry',state}); return; }
@@ -26,10 +26,10 @@ socket.on('message', async (buffer, peer) => {
     if (reply) socket.send(reply, peer.port, peer.address);
     return;
   }
-  if (busy) return;
+  if (busy.has(peer.port) || busy.size >= 2) return;
   seen.set(key,null);
   if (seen.size > 128) seen.delete(seen.keys().next().value);
-  busy=true;
+  busy.add(peer.port);
   const start=performance.now();
   record({event:'request',state});
   try {
@@ -37,11 +37,11 @@ socket.on('message', async (buffer, peer) => {
     const reply=Buffer.from(wireReply(state,result.plan));
     seen.set(key,reply);
     socket.send(reply, peer.port, peer.address);
-    record({event:'decision',round:state.round,request:state.request,nonce:state.nonce,roster_revision:state.roster_revision,state_event:state.event,game_time:state.game_time,latency_ms:Math.round(performance.now()-start),...result});
+    record({event:'decision',team:state.team,round:state.round,request:state.request,nonce:state.nonce,roster_revision:state.roster_revision,state_event:state.event,game_time:state.game_time,latency_ms:Math.round(performance.now()-start),...result});
   } catch (error) {
     // Never log request headers, credentials, or raw provider errors.
     record({event:'fallback',round:state.round,request:state.request,nonce:state.nonce,error:error.message});
-  } finally { busy=false; }
+  } finally { busy.delete(peer.port); }
 });
 socket.on('error', error => { console.error(error.code); socket.close(); process.exitCode=1; });
 socket.bind(28777,'127.0.0.1',()=>console.log('YaPB Jev bridge listening on 127.0.0.1:28777'));

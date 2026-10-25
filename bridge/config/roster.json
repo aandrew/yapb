@@ -1,9 +1,86 @@
 {
   "bots": [
-    {"id":"ct_01","name":"CT_Jev_1","role":"awper","difficulty":2,"personality":2},
-    {"id":"ct_02","name":"CT_Jev_2","role":"lurker","difficulty":2,"personality":2},
-    {"id":"ct_03","name":"CT_Jev_3","role":"entry","difficulty":2,"personality":1},
-    {"id":"ct_04","name":"CT_Jev_4","role":"support","difficulty":2,"personality":0},
-    {"id":"ct_05","name":"CT_Jev_5","role":"support","difficulty":2,"personality":0}
+    {
+      "id": "ct_01",
+      "name": "CT_Jev_1",
+      "role": "awper",
+      "difficulty": 2,
+      "personality": 2,
+      "caller": false
+    },
+    {
+      "id": "ct_02",
+      "name": "CT_Jev_2",
+      "role": "lurker",
+      "difficulty": 2,
+      "personality": 2,
+      "caller": false
+    },
+    {
+      "id": "ct_03",
+      "name": "CT_Jev_3",
+      "role": "entry",
+      "difficulty": 2,
+      "personality": 1,
+      "caller": false
+    },
+    {
+      "id": "ct_04",
+      "name": "CT_Jev_4",
+      "role": "support",
+      "difficulty": 2,
+      "personality": 0,
+      "caller": true
+    },
+    {
+      "id": "ct_05",
+      "name": "CT_Jev_5",
+      "role": "support",
+      "difficulty": 2,
+      "personality": 0,
+      "caller": false
+    }
+  ],
+  "terrorists": [
+    {
+      "id": "t_01",
+      "name": "T_Jev_1",
+      "role": "awper",
+      "difficulty": 2,
+      "personality": 2,
+      "caller": false
+    },
+    {
+      "id": "t_02",
+      "name": "T_Jev_2",
+      "role": "lurker",
+      "difficulty": 2,
+      "personality": 2,
+      "caller": false
+    },
+    {
+      "id": "t_03",
+      "name": "T_Jev_3",
+      "role": "entry",
+      "difficulty": 2,
+      "personality": 1,
+      "caller": false
+    },
+    {
+      "id": "t_04",
+      "name": "T_Jev_4",
+      "role": "support",
+      "difficulty": 2,
+      "personality": 0,
+      "caller": true
+    },
+    {
+      "id": "t_05",
+      "name": "T_Jev_5",
+      "role": "support",
+      "difficulty": 2,
+      "personality": 0,
+      "caller": false
+    }
   ]
 }

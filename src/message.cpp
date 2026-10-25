@@ -344,6 +344,8 @@ void MessageDispatch::NetMsgDeathMsg () {
 
   auto killer_entity = game.EntityOfIndex (args_[killer].long_);
   auto victim_entity = game.EntityOfIndex (args_[victim].long_);
+  system_one.RecordDeath (killer_entity, victim_entity);
+  t_system_one.RecordDeath (killer_entity, victim_entity);
 
   if (game.IsNullEntity (killer_entity) || game.IsNullEntity (victim_entity) || victim_entity == killer_entity) {
     return;

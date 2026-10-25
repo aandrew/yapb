@@ -58,15 +58,17 @@ CommandResult Control::CmdAddBot () {
 
 CommandResult Control::CmdJevStatus () {
   system_one.PrintStatus ();
+  t_system_one.PrintStatus ();
   return CommandResult::Handled;
 }
 
 CommandResult Control::CmdJevOrder () {
-  if (!system_one.AssignNamed (Arg<ystl::StringRef> (2), Arg<ystl::StringRef> (3))) {
+  if (!system_one.AssignNamed (Arg<ystl::StringRef> (2), Arg<ystl::StringRef> (3)) &&
+      !t_system_one.AssignNamed (Arg<ystl::StringRef> (2), Arg<ystl::StringRef> (3))) {
     Msg ("Order rejected: use a configured stable identity and named position while Jev deployment is active.");
   }
   else {
-    Msg ("Named order applied; occupied positions were exchanged to preserve 3 A / 2 B.");
+    Msg ("Named order applied within the current team round policy.");
   }
   return CommandResult::Handled;
 }

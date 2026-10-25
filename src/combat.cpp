@@ -614,6 +614,8 @@ bool Bot::LookupEnemies () {
 
       // keep the shared team contact fresh while the enemy stays in sight
       bots.ReportTeamContact (team_, new_enemy, new_enemy->v.origin, 1);
+      system_one.ObserveEnemy (this, new_enemy, new_enemy->v.origin);
+      t_system_one.ObserveEnemy (this, new_enemy, new_enemy->v.origin);
 
       return true;
     }
@@ -642,6 +644,8 @@ bool Bot::LookupEnemies () {
 
       // broadcast the fresh contact to the rest of the team
       bots.ReportTeamContact (team_, new_enemy, new_enemy->v.origin, NumEnemiesNear (new_enemy->v.origin, 1024.0f));
+      system_one.ObserveEnemy (this, new_enemy, new_enemy->v.origin);
+      t_system_one.ObserveEnemy (this, new_enemy, new_enemy->v.origin);
 
       // and call it out (coordinated: the objective callout above may already hold the floor)
       if (!objective_callout && bots.TryTeamSpeech (team_, 1.5f, SpeechTopic::Enemy, SpeechPriority::Normal)) {

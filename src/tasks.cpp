@@ -227,9 +227,10 @@ void Bot::ClearTasks () {
 }
 
 void Bot::StartTask (TaskId id, float desire, int data, float time, bool resume, bool preserve_goal) {
+  if (id == TaskId::PlantBomb && !t_system_one.PlantAllowed (index_)) { return; }
   // The MVP keeps its site orders instead of chasing a last-seen enemy or
   // accepting a conflicting movement/radio order. Immediate combat still runs.
-  if (system_one.Goal (index_) != kInvalidNodeIndex &&
+  if ((system_one.Goal (index_) != kInvalidNodeIndex || t_system_one.Goal (index_) != kInvalidNodeIndex) &&
       (id == TaskId::Hunt || id == TaskId::FollowUser || id == TaskId::MoveTo || id == TaskId::Camp ||
        id == TaskId::Pause || id == TaskId::Spraypaint)) {
     return;
@@ -351,11 +352,12 @@ void Bot::CompleteTask () {
 void Bot::TaskNormal () {
   aim_flags_ |= AimFlags::Nav;
 
-  if (system_one.HoldPosition (this)) {
+  if (system_one.HoldPosition (this) || t_system_one.HoldPosition (this)) {
     return;
   }
 
-  const int assigned_goal = system_one.Goal (index_);
+  const int ct_goal = system_one.Goal (index_);
+  const int assigned_goal = graph.Exists (ct_goal) ? ct_goal : t_system_one.Goal (index_);
   const int debug_goal = graph.Exists (assigned_goal) ? assigned_goal : cv_debug_goal.As<int> ();
 
   // user forced a node as a goal?
@@ -374,7 +376,7 @@ void Bot::TaskNormal () {
     }
 
     // stop the bot if precisely reached debug goal
-    if (current_node_index_ == debug_goal) {
+    if (current_node_index_ == debug_goal && !t_system_one.Planting (index_)) {
       if (distance_to_debug_origin_sq < ystl::sqrf (22.0f) && util.IsVisible (debug_origin, Ent ())) {
 
         move_to_goal_ = false;
@@ -595,6 +597,9 @@ void Bot::TaskNormal () {
     Task ()->data = dest_index;
 
     auto pst = path_type_;
+    if (system_one.Cautious (index_) || t_system_one.Cautious (index_)) {
+      pst = FindPathType::Safe;
+    }
 
     // override with fast path
     if (game.MapIs (MapFlags::Demolition) && game_state.IsBombPlanted ()) {
@@ -613,6 +618,9 @@ void Bot::TaskNormal () {
     }
   }
   const float shift_speed = GetShiftSpeed ();
+  if (system_one.Cautious (index_) || t_system_one.Cautious (index_)) {
+    move_speed_ = ystl::clamp (move_speed_, -shift_speed, shift_speed);
+  }
 
   if ((!ystl::fzero (move_speed_) && move_speed_ > shift_speed) && (cv_walking_allowed && mp_footsteps) &&
       rg.chance (ystl::max (25, Skill ())) && (heard_sound_timer_.less_than (6.0f) || has_flag (states_, Sense::HearingEnemy)) &&

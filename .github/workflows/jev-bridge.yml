@@ -1,9 +1,9 @@
 name: Jev bridge
 on:
   push:
-    paths: ['bridge/**', '.github/workflows/jev-bridge.yml']
+    paths: ['bridge/**', 'inc/ctstrategy.h', 'tests/ctstrategy_standalone.cpp', '.github/workflows/jev-bridge.yml']
   pull_request:
-    paths: ['bridge/**', '.github/workflows/jev-bridge.yml']
+    paths: ['bridge/**', 'inc/ctstrategy.h', 'tests/ctstrategy_standalone.cpp', '.github/workflows/jev-bridge.yml']
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -13,3 +13,4 @@ jobs:
         with:
           node-version: '24'
       - run: node --test bridge/test.mjs
+      - run: g++ -std=c++20 -Iinc tests/ctstrategy_standalone.cpp -o /tmp/round-policy-tests && /tmp/round-policy-tests

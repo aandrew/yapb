@@ -137,6 +137,10 @@ public:
   void TouchKillerEntity (Bot *bot);
   void Destroy ();
   void Addbot (ystl::StringRef name, Difficulty difficulty, Personality personality, Team team, Skin skin, bool manual);
+  bool HasPendingBot (ystl::StringRef name) const {
+    for (const auto &request : add_requests_) { if (request.name == name) { return true; } }
+    return false;
+  }
   void Addbot (
     ystl::StringRef name, ystl::StringRef difficulty, ystl::StringRef personality, ystl::StringRef team, ystl::StringRef skin, bool manual);
   void ServerFill (CSTeam team, Personality personality = Personality::Normal, Difficulty difficulty = Difficulty::Invalid, int num_to_add = -1);

@@ -36,6 +36,7 @@ bool Bot::ShouldRushEndgameTime () const {
 }
 
 int Bot::FindBestGoal () {
+  if (const int assigned = t_system_one.Goal (index_); graph.Exists (assigned)) { return assigned; }
   if (const int assigned = system_one.Goal (index_); graph.Exists (assigned)) {
     return assigned;
   }

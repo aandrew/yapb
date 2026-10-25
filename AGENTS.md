@@ -4,17 +4,27 @@ This is a fork of yapb/yapb. `origin` is aandrew/yapb; `upstream` is yapb/yapb.
 See docs/jev-mvp.md for setup, protocol, acceptance, and current limits.
 
 - Preserve the upstream bot behaviour when yb_systemone is disabled.
-- The first scenario is standard de_dust2 and five configured CT identities.
+- The scenario is standard de_dust2 and five roster places on each side.
+  Humans replace named bots; send humans team-chat advice, never input commands.
   Dead or disconnected identities stay in the roster; never renumber them.
-- Every offered and applied deployment must contain exactly three A and two B
-  assignments. Use one team-level choice, not independent per-bot choices.
+- Use one team-level choice, not independent per-bot choices. CT round policy
+  now replaces the original 3-A/2-B test: openings are B/Mid/Short/Short/Long
+  or B/Mid/A/Long/Long. Clear attacks allow cautious reinforcement; confirmed
+  bomb attacks commit all identities, and planted bombs trigger a full retake.
+- Phase transitions must be supported by recent CT observations and public
+  kill/death information. Never read hidden live T positions or bomb-carrier
+  locations. Validate each placement against its phase and target site.
 - Author roster/roles in bridge/config/roster.json and exact named targets in
   bridge/config/de_dust2.positions.json. Runtime files are generated from these.
 - Fine callout boundaries in bridge/config/de_dust2.areas.json are drafts, not
   approved standing positions. Keep unknown locations unmapped. Respect height
   ranges for overlapping floors and the source graph hash when using node IDs.
+- Caller is an overlay on a combat role. Lock each T site and rush/45–80 second
+  attack delay once per round, measured after freeze. Clear in stages until the
+  deadline, then execute. Entry is an aggressive disposition, not a mandatory
+  lead position; never hold supports back to enforce entry-first movement.
 - Keep ten-second polling bounded to one immutable snapshot and one in-flight
-  request. Failed updates retain prior orders; round/roster changes invalidate
+  request per team. Failed updates retain prior orders; round/roster changes invalidate
   old replies. Repeated polls must not repeat round-start announcements.
 - Keep API requests outside the engine thread. Never send entity pointers or
   hidden enemy state. Validate round/request/nonce, roster membership, and expiry.

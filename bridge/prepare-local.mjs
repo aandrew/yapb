@@ -25,6 +25,7 @@ const graphHash=createHash('sha256').update(readFileSync(join(workspace,'work','
 if(graphHash!==catalogue.graph_sha256)console.warn('Callout waypoint IDs need regeneration for this graph. Spatial callout boundaries remain drafts.');
 const {roster,map}=loadConfig();
 writeFileSync(join(mod,'addons','yapb','conf','systemone.cfg'),engineConfig(roster,map));
+writeFileSync(join(mod,'addons','yapb','conf','systemone_t.cfg'),engineConfig(roster,map,'T'));
 // Dedicated development configuration only; the normal Steam installation is untouched.
 const server=`hostname "YaPB Jev Local MVP"\nsv_lan 1\nrcon_password "${password}"\nmp_autoteambalance 0\nmp_limitteams 0\nmp_freezetime 8\nmp_roundtime 3\nmp_timelimit 0\nmp_startmoney 16000\nmp_logmessages 1\nlog on\nyb_systemone 1\nyb_quota 0\nyb_autovacate 0\nyb_kick_after_player_connect 0\nyb_save_bots 0\nyb_threadpool_workers 0\nyb_chat 1\nyb_radio_mode 0\nyb_user_follow_percent 0\nyb_display_welcome_text 0\nyb_graph_url ""\nyb_graph_url_upload ""\n`;
 writeFileSync(join(mod,'jev_local.cfg'),server);
