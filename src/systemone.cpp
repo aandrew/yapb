@@ -410,6 +410,11 @@ void SystemOne::MaintainDrops () {
 
 void SystemOne::NewRound () {
   ++round_;
+  if (competitive_match.Rules ().a + competitive_match.Rules ().b == 0) { last_crunch_round_ = -100; }
+  crunch_active_ = crunch_used_ = crunch_returning_ = false; crunch_choke_ = '-';
+  drop_known_ = false; objective_origin_.clear (); objective_box_ = nullptr; objective_base_ = collector_ = -1;
+  next_objective_scan_ = next_c4_handoff_ = 0.0f; t_pick_time_ = -100.0f;
+  for (auto &passed : rush_passed_) { passed = false; }
   economy_ready_ = false;
   for (int i = 0; i < 5; ++i) { buy_weapon_[i] = Weapon::Invalid; buy_cash_[i] = buy_cap_[i] = 0; donated_[i] = received_[i] = false; drop_box_[i] = nullptr; drop_serial_[i] = 0; }
   nonce_ = ystl::rg (1, 0x3fffffff);
@@ -427,6 +432,7 @@ void SystemOne::NewRound () {
   required_ = ordered_ = {};
   formation_ = 0;
   defuser_ = -1;
+  planted_info_ = {}; shared_plant_origin_.clear (); plant_source_ = "unknown"; plant_reporter_ = -1;
   for (auto &sighting : sightings_) { sighting = {}; }
   for (auto &event : events_) { event = {}; }
   for (auto &identity : identities_) {
@@ -570,9 +576,9 @@ ystl::String SystemOne::BuildState (bool telemetry) {
     game.Time (), game_state.GetRoundTimeLeft (), cv_systemone_poll_interval.As<float> (), game_state.IsBombPlanted () ? "true" : "false");
   for (int i = 0; i < position_count_; ++i) {
     const auto &p = positions_[i];
-    payload.appendf ("%s{\"id\":\"%s\",\"site\":\"%c\",\"zone\":\"%c\",\"stage\":%d,\"origin\":[%.1f,%.1f,%.1f],\"look_at\":[%.1f,%.1f,%.1f],\"radius\":%.1f,\"stance\":\"%s\",\"preferred_roles\":\"%s\",\"waypoint\":%d}",
+    payload.appendf ("%s{\"id\":\"%s\",\"site\":\"%c\",\"zone\":\"%c\",\"stage\":%d,\"origin\":[%.1f,%.1f,%.1f],\"look_at\":[%.1f,%.1f,%.1f],\"radius\":%.1f,\"stance\":\"%s\",\"preferred_roles\":\"%s\",\"waypoint\":%d,\"crunch_group\":\"%c\"}",
       i == 0 ? "" : ",", p.id, p.site, p.zone, p.stage, p.origin.x, p.origin.y, p.origin.z, p.look_at.x, p.look_at.y, p.look_at.z,
-      p.radius, p.crouch ? "crouch" : "stand", p.preferred_roles, p.waypoint);
+      p.radius, p.crouch ? "crouch" : "stand", p.preferred_roles, p.waypoint, CrunchGroup (i));
   }
   payload.append ("],\"bots\":[");
   for (int i = 0; i < 5; ++i) {
@@ -582,13 +588,14 @@ ystl::String SystemOne::BuildState (bool telemetry) {
     const ystl::Vector origin = entity != nullptr ? entity->v.origin : ystl::Vector {};
     const bool alive = entity != nullptr && game.IsAliveEntity (entity);
     const bool assigned = identity.position >= 0 && identity.position < position_count_;
+    const int actual_goal = player != nullptr ? Goal (player->index_) : (assigned ? positions_[identity.position].waypoint : -1);
     payload.appendf ("%s{\"id\":\"%s\",\"role\":\"%s\",\"slot\":%d,\"userid\":%d,\"generation\":%d,\"human\":%s,\"caller\":%s,\"connected\":%s,\"alive\":%s,\"health\":%.0f,\"money\":%d,\"weapon\":%d,\"origin\":[%.1f,%.1f,%.1f],\"position\":\"%s\",\"site\":\"%c\",\"goal\":%d,\"rotating\":%s}",
       i == 0 ? "" : ",", identity.id, identity.role, identity.slot, identity.userid, identity.generation,
       identity.human ? "true" : "false", Caller () == i ? "true" : "false", entity != nullptr ? "true" : "false", alive ? "true" : "false", entity != nullptr ? entity->v.health : 0.0f,
       MoneyFor (i), player != nullptr ? static_cast<int> (player->current_weapon_) : 0,
       origin.x, origin.y, origin.z, assigned ? positions_[identity.position].id : "pending",
-      assigned ? positions_[identity.position].site : '-', assigned ? positions_[identity.position].waypoint : -1,
-      alive && assigned && origin.distance_sq (graph[positions_[identity.position].waypoint].origin) > ystl::sqrf (96.0f) ? "true" : "false");
+      assigned ? positions_[identity.position].site : '-', actual_goal,
+      alive && graph.Exists (actual_goal) && origin.distance_sq (graph[actual_goal].origin) > ystl::sqrf (96.0f) ? "true" : "false");
   }
   payload.appendf ("],\"economy\":{\"ready\":%s,\"mode\":\"%s\",\"average\":%d,\"known_members\":%d,\"ct_score\":%d,\"t_score\":%d,\"score_known\":%s,\"match_format\":\"MR12\",\"must_buy\":%s},\"observed_contacts\":[",
     economy_ready_ ? "true" : "false", EconomyName (economy_mode_), economy_average_, economy_known_, ct_score_, t_score_, score_known_ ? "true" : "false", competitive_match.Rules ().MustBuy () ? "true" : "false");
@@ -609,20 +616,24 @@ ystl::String SystemOne::BuildState (bool telemetry) {
     if (team == Team::CT) { ++ct_alive; }
     if (team == Team::Terrorist) { ++t_alive; }
   }
-  payload.appendf ("],\"round_state\":{\"phase\":\"%s\",\"phase_code\":%d,\"target_site\":\"%c\",\"deployed\":%s,\"sightings_a\":%d,\"sightings_b\":%d,\"recent_ct_deaths_a\":%d,\"recent_ct_deaths_b\":%d,\"bomb_recent\":%s,\"bomb_site\":\"%c\",\"planted_site\":\"%c\",\"previous_target\":\"%c\",\"formation\":%d,\"ct_alive\":%d,\"t_alive\":%d,\"ct_deaths\":%d,\"t_deaths\":%d,\"event_revision\":%d},\"bomb\":{\"planted\":%s,\"known\":%s,\"site\":\"%c\",\"age\":%.2f,\"source\":\"%s\"",
+  payload.appendf ("],\"round_state\":{\"phase\":\"%s\",\"phase_code\":%d,\"target_site\":\"%c\",\"deployed\":%s,\"sightings_a\":%d,\"sightings_b\":%d,\"recent_ct_deaths_a\":%d,\"recent_ct_deaths_b\":%d,\"bomb_recent\":%s,\"bomb_site\":\"%c\",\"planted_site\":\"%c\",\"previous_target\":\"%c\",\"formation\":%d,\"ct_alive\":%d,\"t_alive\":%d,\"ct_deaths\":%d,\"t_deaths\":%d,\"event_revision\":%d,\"dropped_secured\":%s,\"dropped_site\":\"%c\",\"crunch_available\":%s,\"crunch_used\":%s,\"crunch_active\":%s,\"crunch_choke\":\"%c\",\"elapsed\":%.2f},\"bomb\":{\"planted\":%s,\"known\":%s,\"site\":\"%c\",\"age\":%.2f,\"source\":\"%s\"",
     CTPhaseName (required_.phase), static_cast<int> (required_.phase), required_.site, applied_ ? "true" : "false",
     evidence.sightings_a, evidence.sightings_b, evidence.deaths_a, evidence.deaths_b, evidence.bomb_recent ? "true" : "false",
-    evidence.bomb_site, evidence.planted_site, evidence.previous_target, formation_, ct_alive, t_alive, ct_deaths_, t_deaths_, event_revision_,
-    evidence.planted ? "true" : "false", evidence.planted || evidence.bomb_recent ? "true" : "false",
+    evidence.bomb_site, evidence.planted_site, evidence.previous_target, formation_, ct_alive, t_alive, ct_deaths_, t_deaths_, event_revision_, evidence.secured_drop ? "true" : "false", evidence.dropped_site, CrunchAvailable () ? "true" : "false", crunch_used_ ? "true" : "false", crunch_active_ ? "true" : "false", crunch_choke_, game.Time () - game_state.GetRoundStartTime (),
+    evidence.planted ? "true" : "false", (evidence.planted && evidence.planted_site != '-') || evidence.bomb_recent ? "true" : "false",
     evidence.planted ? evidence.planted_site : evidence.bomb_site, evidence.planted ? 0.0f : game.Time () - bomb_seen_time_,
-    evidence.planted ? "planted_objective" : (evidence.bomb_recent ? "last_visible_carrier" : "unknown"));
-  if (evidence.planted && !game_state.GetBombOrigin ().empty ()) {
-    const auto &origin = game_state.GetBombOrigin ();
+    evidence.planted ? (team_ == Team::CT ? plant_source_ : "own_team_plant") : (evidence.bomb_recent ? "last_visible_carrier" : "unknown"));
+  if (evidence.planted && !(team_ == Team::CT ? shared_plant_origin_ : game_state.GetBombOrigin ()).empty ()) {
+    const auto &origin = team_ == Team::CT ? shared_plant_origin_ : game_state.GetBombOrigin ();
     payload.appendf (",\"origin\":[%.1f,%.1f,%.1f]", origin.x, origin.y, origin.z);
   }
   else if (evidence.bomb_recent) {
     payload.appendf (",\"origin\":[%.1f,%.1f,%.1f]", bomb_seen_origin_.x, bomb_seen_origin_.y, bomb_seen_origin_.z);
   }
+  payload.appendf ("},\"bomb_objective\":{\"dropped\":%s,\"collector_id\":\"%s\",\"pickup_position\":\"%s\",\"source\":\"%s\"",
+    drop_known_ ? "true" : "false", collector_ >= 0 ? identities_[collector_].id : "", objective_base_ >= 0 ? positions_[objective_base_].id : "",
+    team_ == Team::CT ? "last_team_sighting" : "team_bomb_radar");
+  if (drop_known_) { payload.appendf (",\"origin\":[%.1f,%.1f,%.1f]", objective_origin_.x, objective_origin_.y, objective_origin_.z); }
   payload.appendf ("},\"t_plan\":{\"locked\":%s,\"target_site\":\"%c\",\"attack_delay\":%d,\"attack_at\":%.2f,\"elapsed\":%.2f,\"stage\":%d,\"fake_id\":\"%s\",\"compromised\":%s,\"retargeted\":%s,\"early_execute\":%s},\"round_events\":[",
     t_locked_ ? "true" : "false", t_target_, attack_delay_, attack_time_, game.Time () - game_state.GetRoundStartTime (), t_stage_,
     FakeMember () >= 0 ? identities_[FakeMember ()].id : "", t_compromised_ ? "true" : "false", t_retargeted_ ? "true" : "false", t_early_ ? "true" : "false");
@@ -679,7 +690,29 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
     }
   }
   if (team_ == Team::CT) {
-    if (phase != required_.phase || site != required_.site || timing != 0 || !ValidateCTPlacement (phase, site, formation, zones, holding)) { return false; }
+    if (phase == CTPhase::Crunch) {
+      if (timing != 0 || (!crunch_active_ && !CrunchAvailable ())) { return false; }
+      if (site != 'L' && site != 'S' && site != 'M' && site != 'B') { return false; }
+      if (crunch_active_ && site != crunch_choke_) { return false; }
+      if (!crunch_active_) { for (int i = 0; i < 5; ++i) { auto *entity = Entity (i); if (entity == nullptr || !game.IsAliveEntity (entity)) { return false; } } }
+      int count = 0;
+      for (int i = 0; i < 5; ++i) {
+        if (CrunchGroup (targets[i]) == site) { ++count; }
+        else if (targets[i] != (crunch_active_ ? crunch_home_[i] : identities_[i].position)) { return false; }
+      }
+      if ((count != 3 && count != 4) || formation != count) { return false; }
+      if (!crunch_active_) {
+        for (int i = 0; i < 5; ++i) { crunch_home_[i] = identities_[i].position; }
+        last_crunch_round_ = competitive_match.Rules ().a + competitive_match.Rules ().b + 1;
+        crunch_started_ = game.Time (); crunch_used_ = crunch_active_ = true; crunch_choke_ = site; crunch_count_ = count;
+      }
+      required_ = { CTPhase::Crunch, site };
+    }
+    else if (crunch_returning_) {
+      for (int i = 0; i < 5; ++i) { if (targets[i] != crunch_home_[i]) { return false; } }
+    }
+    else if (phase != required_.phase || site != required_.site || timing != 0 || !ValidateCTPlacement (phase, site, formation, zones, holding)) { return false; }
+    if (phase != CTPhase::Crunch) { crunch_active_ = false; }
   }
   else {
     if (site != 'A' && site != 'B') { return false; }
@@ -688,10 +721,11 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
     }
     else if (timing != attack_delay_ || (phase != required_.phase && !(early && CanExecuteEarly ())) || (pivot && !CanRetarget ())) { return false; }
     const bool clearing = phase == CTPhase::TClear || (phase == CTPhase::TCall && timing > 0);
-    const char zone = clearing ? (site == 'A' ? 'X' : 'Y') : site;
+    const char zone = phase == CTPhase::TRecoverBomb ? 'R' : (clearing ? (site == 'A' ? 'X' : 'Y') : site);
     const int stage = phase == CTPhase::TCall ? 0 : (pivot ? 2 : t_stage_);
     if (formation != (clearing ? stage : 0)) { return false; }
     for (int i = 0; i < 5; ++i) {
+      if (phase == CTPhase::TRecoverBomb && i == collector_ && targets[i] != objective_base_) { return false; }
       if (clearing && i == FakeMember ()) {
         if (targets[i] != FakePosition (site)) { return false; }
       }
@@ -706,7 +740,7 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
       game.Print ("[Jev] T call target=%c delay=%d attack_at=%.2f", site, timing, attack_time_);
     }
   }
-  if (pivot) { t_target_ = site; t_stage_ = 2; t_retargeted_ = true; required_ = { phase, site }; }
+  if (pivot) { for (auto &passed : rush_passed_) { passed = false; } t_target_ = site; t_stage_ = 2; t_retargeted_ = true; required_ = { phase, site }; }
   if (early) { attack_time_ = game.Time (); t_early_ = true; required_ = { phase, site }; }
   const bool opening = !applied_;
   pending_ = false;
@@ -714,16 +748,8 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
   const bool phase_changed = ordered_.phase != phase || ordered_.site != site;
   ordered_ = { phase, site };
   formation_ = formation;
-  defuser_ = -1;
-  if (phase == CTPhase::Retake) {
-    float best = kInfiniteDistance;
-    for (int i = 0; i < 5; ++i) {
-      auto *player = Player (i);
-      if (player == nullptr || !game.IsAliveEntity (player->Ent ())) { continue; }
-      const float score = player->pev->origin.distance_sq (game_state.GetBombOrigin ());
-      if (score < best) { best = score; defuser_ = i; }
-    }
-  }
+  if (phase == CTPhase::Retake) { ChooseDefuser (site); }
+  else { defuser_ = -1; }
   for (int i = 0; i < 5; ++i) {
     auto &identity = identities_[i];
     const bool changed = identity.position != targets[i];
@@ -732,15 +758,25 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
     game.Print ("[Jev] Order round=%d request=%d source=%s phase=%s target=%c formation=%d identity=%s role=%s position=%s zone=%c changed=%d nonce=%d",
       round_, request_, source, CTPhaseName (phase), site, formation, identity.id, identity.role,
       positions_[targets[i]].id, positions_[targets[i]].zone, changed ? 1 : 0, nonce_);
-    if (auto *player = Player (i); player != nullptr && changed && (opening || player->GetTaskId () == TaskId::Normal)) {
+    if (auto *player = Player (i); player != nullptr && (changed || (phase_changed && phase == CTPhase::Retake)) &&
+        (opening || player->GetTaskId () == TaskId::Normal || (phase == CTPhase::Retake &&
+          (player->GetTaskId () == TaskId::Hunt || player->GetTaskId () == TaskId::MoveTo || player->GetTaskId () == TaskId::Camp || player->GetTaskId () == TaskId::Pause)))) {
       player->ClearTasks ();
       player->ClearSearchNodes ();
       player->Task ()->data = positions_[targets[i]].waypoint;
     }
   }
   if (phase_changed && !opening) {
-    if (pivot) { TeamChat (ystl::strings.format ("Caller: change of plan. Switch to %c. %s", site, phase == CTPhase::TExecute ? "Execute NOW." : "Get ready outside site, keep execute time.")); }
-    else if (early) { TeamChat (ystl::strings.format ("Caller: player advantage. Execute %c NOW!", site)); }
+    if (phase == CTPhase::Crunch) { TeamChat (ystl::strings.format ("Caller: crunch %s with %d. Stop at the choke, fall back to setup once quiet.", CrunchName (), crunch_count_)); }
+    else if (crunch_returning_) { /* The return call is sent by UpdateCrunch. */ }
+    else if (phase == CTPhase::TRecoverBomb) { TeamChat ("Caller: bomb down. Recover the bomb first, everyone cover the recovery."); }
+    else if (phase == CTPhase::GuardBomb) { TeamChat ("Caller: dropped bomb secured. Hold angles on the bomb, make them come to us."); }
+    else if (phase == CTPhase::Retake) {
+      TeamChat (ystl::strings.format ("Caller: bomb %c (%s). Everyone retake %c. %s defuses, others cover.", site, plant_source_, site,
+        defuser_ >= 0 ? identities_[defuser_].id : "closest teammate"));
+    }
+    else if (pivot) { TeamChat (ystl::strings.format ("Caller: change of plan. Switch to %c. %s", site, phase == CTPhase::TExecute ? "Execute NOW." : "Get ready outside site, keep execute time.")); }
+    else if (early || (t_early_ && phase == CTPhase::TExecute)) { TeamChat (ystl::strings.format ("Caller: player advantage. Execute %c NOW!", site)); }
     else if (phase == CTPhase::TExecute) { TeamChat (ystl::strings.format ("Caller: execute %c NOW. Everyone move in. Fake rejoins attack.", site)); }
     else if (phase != CTPhase::TClear) { TeamChat (ystl::strings.format ("Caller: %s, target %c.", CTPhaseName (phase), site)); }
   }
@@ -751,9 +787,16 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
 
 void SystemOne::ApplyFallback () {
   pending_ = false;
+  if (required_.phase == CTPhase::GuardBomb || required_.phase == CTPhase::TRecoverBomb) {
+    if (objective_base_ < 0 || (required_.phase == CTPhase::TRecoverBomb && collector_ < 0)) { return; }
+    int targets[5] {}, next = 1;
+    for (int i = 0; i < 5; ++i) { targets[i] = objective_base_ + (required_.phase == CTPhase::TRecoverBomb && i == collector_ ? 0 : (required_.phase == CTPhase::TRecoverBomb ? next++ : i)); }
+    Apply (targets, "objective_fallback", required_.phase, required_.site, 0, team_ == Team::Terrorist ? attack_delay_ : 0);
+    return;
+  }
   if (team_ == Team::Terrorist) {
     const char site = t_locked_ ? t_target_ : (round_ % 2 == 0 ? 'A' : 'B');
-    const int timing = t_locked_ ? attack_delay_ : 60;
+    const int timing = t_locked_ ? attack_delay_ : 0;
     if (applied_ && ordered_.phase == required_.phase && ordered_.site == required_.site &&
         (required_.phase != CTPhase::TClear || formation_ == t_stage_)) { return; }
     const bool clearing = required_.phase == CTPhase::TClear || (!t_locked_ && timing > 0);
@@ -779,7 +822,7 @@ void SystemOne::ApplyFallback () {
     else if (count == 5) { Apply (targets, "policy_fallback", required_.phase, site, 0, timing); }
     return;
   }
-  if (applied_ && (required_.phase == CTPhase::Gather || required_.phase == CTPhase::LocateBomb ||
+  if (applied_ && ordered_.phase != CTPhase::GuardBomb && (required_.phase == CTPhase::Gather || required_.phase == CTPhase::LocateBomb ||
       (ordered_.phase == required_.phase && ordered_.site == required_.site))) {
     game.Print ("[Jev] Request %d timed out; retaining last valid named orders.", request_);
     return;
@@ -816,10 +859,14 @@ int SystemOne::Goal (int index) const {
   if (identity == -1 || identities_[identity].position < 0) {
     return -1;
   }
-  if (ordered_.phase == CTPhase::Retake && identity == defuser_ && game_state.IsBombPlanted ()) {
-    return -1; // Let the closest defender execute YaPB's normal bomb/defuse tasks.
+  if (team_ == Team::CT && required_.phase == CTPhase::LocateBomb && game_state.IsBombPlanted ()) { return -1; }
+  if (ordered_.phase == CTPhase::Retake && identity == defuser_ && game_state.IsBombPlanted () && !shared_plant_origin_.empty ()) {
+    return graph.GetNearest (shared_plant_origin_, 512.0f);
   }
-  if (team_ == Team::Terrorist && ordered_.phase >= CTPhase::TExecute) {
+  if (team_ == Team::Terrorist && ordered_.phase == CTPhase::TExecute && attack_delay_ == 0 && !rush_passed_[identity]) {
+    const int gate = RushGate (); if (graph.Exists (gate)) { return gate; }
+  }
+  if (team_ == Team::Terrorist && ordered_.phase == CTPhase::TExecute) {
     auto *player = Player (identity);
     if (player != nullptr && player->has_c4_) {
       int best = -1; float distance = kInfiniteDistance;
@@ -835,6 +882,7 @@ int SystemOne::Goal (int index) const {
 }
 
 bool SystemOne::HoldPosition (Bot *bot) const {
+  if (Defusing (bot->index_) || (ordered_.phase == CTPhase::TRecoverBomb && IdentityFor (bot->index_) == collector_)) { return false; }
   if (team_ == Team::Terrorist && ordered_.phase >= CTPhase::TExecute && bot->has_c4_) { return false; }
   if (Goal (bot->index_) == -1) { return false; }
   const auto &identity = identities_[IdentityFor (bot->index_)];
@@ -890,6 +938,10 @@ bool SystemOne::HoldPosition (Bot *bot) const {
   bot->move_to_goal_ = bot->check_terrain_ = false;
   bot->move_speed_ = bot->strafe_speed_ = 0.0f;
   bot->look_at_safe_ = position.look_at;
+  if (ordered_.phase == CTPhase::Crunch && CrunchGroup (identity.position) == crunch_choke_) {
+    bot->look_at_safe_ = crunch_choke_ == 'L' ? ystl::Vector (570.0f,455.0f,48.0f) : (crunch_choke_ == 'S' ? ystl::Vector (-167.0f,965.0f,48.0f) :
+      (crunch_choke_ == 'M' ? ystl::Vector (-500.0f,500.0f,48.0f) : ystl::Vector (-1700.0f,500.0f,48.0f)));
+  }
   bot->aim_flags_ |= AimFlags::Camp;
   if (game.Time () >= game_state.GetRoundStartTime () && identity.hold_phase != 0 && clear_step (identity.hold_target)) {
     const float remaining = bot->pev->origin.distance2d (identity.hold_target);
@@ -961,8 +1013,11 @@ char SystemOne::SiteFor (const ystl::Vector &origin, bool planted) const {
 CTEvidence SystemOne::Evidence () const {
   CTEvidence evidence {};
   evidence.deployed = applied_;
+  evidence.crunch_active = crunch_active_; evidence.crunch_choke = crunch_choke_;
+  evidence.secured_drop = team_ == Team::CT && drop_known_ && objective_base_ >= 0;
+  evidence.dropped_site = objective_base_ >= 0 ? positions_[objective_base_].site : 'M';
   evidence.planted = game_state.IsBombPlanted ();
-  evidence.planted_site = evidence.planted ? SiteFor (game_state.GetBombOrigin (), true) : '-';
+  evidence.planted_site = evidence.planted ? (team_ == Team::CT ? planted_info_.Site () : SiteFor (game_state.GetBombOrigin (), true)) : '-';
   evidence.bomb_recent = game.Time () - bomb_seen_time_ <= 10.0f;
   evidence.bomb_site = evidence.bomb_recent ? bomb_seen_site_ : '-';
   evidence.previous_target = ordered_.site;
@@ -994,6 +1049,7 @@ void SystemOne::ObserveEnemy (Bot *observer, edict_t *enemy, const ystl::Vector 
   slot->userid = userid; slot->time = game.Time (); slot->origin = origin;
   slot->site = SiteFor (origin); slot->active = true;
   if (team_ == Team::CT && (enemy->v.weapons & (1 << static_cast<int> (Weapon::C4))) != 0) {
+    drop_known_ = false;
     bomb_seen_time_ = game.Time (); bomb_seen_origin_ = origin; bomb_seen_site_ = slot->site;
   }
 }
@@ -1011,6 +1067,7 @@ void SystemOne::RecordDeath (edict_t *killer, edict_t *victim) {
     const auto team = game.GetPlayerTeam (killer);
     event.killer_team = team == Team::CT ? 'C' : (team == Team::Terrorist ? 'T' : '-');
   }
+  if (team_ == Team::Terrorist && event.victim_team == 'C' && event.killer_team == 'T') { t_pick_time_ = game.Time (); }
   if (victim_team == Team::CT) { ++ct_deaths_; }
   else { ++t_deaths_; }
   if (victim_team == team_) { event.origin = victim->v.origin; event.known_origin = true; } // A public death notification does not reveal a T's location.
@@ -1018,6 +1075,289 @@ void SystemOne::RecordDeath (edict_t *killer, edict_t *victim) {
     if (contact.userid == event.victim) { contact.active = false; }
   }
   ++event_revision_;
+}
+
+bool SystemOne::CrunchAvailable () const {
+  const auto &match = competitive_match.Rules ();
+  if (team_ != Team::CT || crunch_used_ || required_.phase != CTPhase::Gather || game_state.IsBombPlanted () || drop_known_ ||
+      game.Time () < game_state.GetRoundStartTime () || game.Time () - game_state.GetRoundStartTime () > 20.0f ||
+      !CrunchMixupAllowed (match.a + match.b + 1, match.SideScore (true), match.SideScore (false), last_crunch_round_)) { return false; }
+  for (int i = 0; i < 5; ++i) { auto *entity = Entity (i); if (entity == nullptr || !game.IsAliveEntity (entity)) { return false; } }
+  return true;
+}
+
+char SystemOne::CrunchGroup (int position) const {
+  if (position < 0 || position >= position_count_) { return '-'; }
+  const auto id = ystl::StringRef (positions_[position].id);
+  if (id == "long_anchor" || id == "long_crossfire" || id == "t_a_2_entry" || id == "t_a_2_awper") { return 'L'; }
+  if (id == "short_anchor" || id == "short_crossfire" || id.starts_with ("crunch_short_")) { return 'S'; }
+  if (id.starts_with ("crunch_mid_")) { return 'M'; }
+  if (id == "b_anchor" || id == "t_b_2_entry" || id == "t_b_1_entry" || id.starts_with ("crunch_tunnels_")) { return 'B'; }
+  return '-';
+}
+
+const char *SystemOne::CrunchName () const {
+  return crunch_choke_ == 'L' ? "Long" : (crunch_choke_ == 'S' ? "Short" : (crunch_choke_ == 'M' ? "Mid" : "B tunnels"));
+}
+
+void SystemOne::UpdateCrunch () {
+  if (team_ != Team::CT || !crunch_active_) { return; }
+  if (game_state.IsBombPlanted () || drop_known_) { crunch_active_ = false; return; }
+  int alive = 0, arrived = 0; bool contact = false;
+  for (int i = 0; i < 5; ++i) {
+    const int position = identities_[i].position;
+    if (CrunchGroup (position) != crunch_choke_) { continue; }
+    auto *entity = Entity (i);
+    if (entity == nullptr || !game.IsAliveEntity (entity)) { continue; }
+    ++alive;
+    if (entity->v.origin.distance_sq (positions_[position].origin) < ystl::sqrf (160.0f)) { ++arrived; }
+    for (const auto &sighting : sightings_) {
+      if (sighting.active && game.Time () - sighting.time <= 4.0f && sighting.origin.distance_sq2d (positions_[position].origin) < ystl::sqrf (900.0f)) { contact = true; }
+    }
+  }
+  const float elapsed = game.Time () - crunch_started_;
+  if (alive >= 2 && (contact || (elapsed < 20.0f && (arrived != alive || elapsed < 6.0f)))) { return; }
+  crunch_active_ = false; crunch_returning_ = true; required_ = { CTPhase::Gather, '-' };
+  pending_ = false;
+  TeamChat (ystl::strings.format ("Caller: %s %s. Fall back to your original positions.", CrunchName (), contact ? "crunch over" : "quiet"));
+  Apply (crunch_home_, "crunch_return", CTPhase::Gather, '-', 0);
+  crunch_returning_ = false; next_poll_ = game.Time ();
+}
+
+bool SystemOne::BuildObjectivePositions (const ystl::Vector &origin) {
+  Position planned[5] {}; int used[5] {};
+  for (int slot = 0; slot < 5; ++slot) {
+    int best = -1; float score = kInfiniteDistance;
+    for (const auto &node : graph) {
+      if (has_flag (node.flags, NodeFlag::Ladder) || ystl::abs (node.origin.z - origin.z) > 96.0f) { continue; }
+      const float distance = node.origin.distance_sq2d (origin);
+      if (distance > ystl::sqrf (768.0f) || ((team_ == Team::CT || slot > 0) && distance < ystl::sqrf (128.0f))) { continue; }
+      bool close = false;
+      for (int prior = 0; prior < slot; ++prior) { close |= node.number == used[prior] || node.origin.distance_sq2d (graph[used[prior]].origin) < ystl::sqrf (64.0f); }
+      if (!close && distance < score) { score = distance; best = node.number; }
+    }
+    if (best < 0) { return false; }
+    used[slot] = best;
+    auto &position = planned[slot];
+    snprintf (position.id, sizeof (position.id), "%s_bomb_%d", team_ == Team::CT ? "guard" : "recover", slot);
+    const char site = SiteFor (origin);
+    position.site = site == 'A' || site == 'B' ? site : 'M';
+    position.zone = team_ == Team::CT ? 'G' : 'R'; position.stage = -1; position.waypoint = best;
+    position.origin = graph[best].origin; position.look_at = origin;
+    if (team_ == Team::CT || slot > 0) { position.look_at = position.origin + (position.origin - origin).normalize2d () * 600.0f; }
+    position.radius = 32.0f;
+    snprintf (position.preferred_roles, sizeof (position.preferred_roles), "%s", team_ == Team::Terrorist && slot == 0 ? "support" : "support,entry,lurker,awper");
+  }
+  if (objective_base_ < 0) {
+    if (position_count_ + 5 > 64) { return false; }
+    objective_base_ = position_count_; position_count_ += 5;
+  }
+  for (int i = 0; i < 5; ++i) { positions_[objective_base_ + i] = planned[i]; }
+  pending_ = false; ++roster_revision_; next_poll_ = game.Time ();
+  return true;
+}
+
+int SystemOne::RushGate () const {
+  const char *id = t_target_ == 'A' ? "t_a_2_entry" : "t_b_2_entry";
+  for (int i = 0; i < position_count_; ++i) { if (ystl::StringRef (positions_[i].id) == id) { return positions_[i].waypoint; } }
+  return -1;
+}
+
+bool SystemOne::CanRecover (int index) const {
+  const int identity = IdentityFor (index);
+  return !cv_systemone || team_ != Team::Terrorist || identity < 0 || ordered_.phase != CTPhase::TRecoverBomb || identity == collector_;
+}
+
+bool SystemOne::HoldCarrier (Bot *player) const {
+  if (!cv_systemone || team_ != Team::Terrorist || !player->has_c4_ || !applied_ || game.Time () < game_state.GetRoundStartTime () ||
+      player->in_bomb_zone_ || ordered_.phase == CTPhase::TPostPlant || ordered_.phase == CTPhase::TRecoverBomb) { return false; }
+  ystl::Vector target {};
+  for (int i = 0; i < position_count_; ++i) { if (positions_[i].zone == t_target_) { target = positions_[i].origin; break; } }
+  const float own = player->pev->origin.distance2d (target);
+  float teammate = kInfiniteDistance; int friends = 0;
+  for (int i = 0; i < 5; ++i) {
+    auto *entity = Entity (i);
+    if (entity != nullptr && entity != player->Ent () && game.IsAliveEntity (entity)) { ++friends; teammate = ystl::min (teammate, entity->v.origin.distance2d (target)); }
+  }
+  if (friends == 0 || own >= teammate + 96.0f) { return false; }
+  player->move_to_goal_ = player->check_terrain_ = false;
+  player->move_speed_ = player->strafe_speed_ = 0.0f;
+  player->look_at_safe_ = target; player->aim_flags_ |= AimFlags::Camp;
+  return true;
+}
+
+void SystemOne::UpdateBombObjective () {
+  if (game_state.IsBombPlanted ()) { drop_known_ = false; return; }
+  if (team_ == Team::Terrorist) {
+    const int gate = RushGate ();
+    for (int i = 0; i < 5; ++i) {
+      auto *player = Player (i); auto *entity = Entity (i);
+      if (entity != nullptr && graph.Exists (gate) && entity->v.origin.distance_sq2d (graph[gate].origin) < ystl::sqrf (256.0f)) { rush_passed_[i] = true; }
+      if (player == nullptr) { continue; }
+      if (player->has_c4_) {
+        player->personality_ = Personality::Careful;
+        player->agression_level_ = ystl::min (player->agression_level_, 0.2f);
+        player->fear_level_ = ystl::max (player->fear_level_, 0.8f);
+        identities_[i].carrier_tuned = true;
+        if (game.Time () < game_state.GetRoundStartTime () && game.Time () >= next_c4_handoff_ &&
+            (player->pev->weapons & (1 << static_cast<int> (Weapon::C4))) != 0 && ystl::StringRef (identities_[i].role) != "support") {
+          for (int support = 0; support < 5; ++support) {
+            auto *recipient = Entity (support);
+            if (recipient == nullptr || !game.IsAliveEntity (recipient) || ystl::StringRef (identities_[support].role) != "support" ||
+                recipient->v.origin.distance_sq (player->pev->origin) > ystl::sqrf (1024.0f)) { continue; }
+            next_c4_handoff_ = game.Time () + 1.0f;
+            player->SelectWeaponById (Weapon::C4); player->DropCurrentWeapon ();
+            game.SearchEntities ("classname", "weaponbox", [&] (edict_t *box) {
+              if (game.IsEntityModelMatches (box, "backpack.mdl")) { box->v.flags |= FL_ONGROUND; MDLL_Touch (box, recipient); return EntitySearchResult::Break; }
+              return EntitySearchResult::Continue;
+            });
+            if ((recipient->v.weapons & (1 << static_cast<int> (Weapon::C4))) != 0) {
+              player->has_c4_ = false;
+              if (auto *recipient_bot = bots[recipient]; recipient_bot != nullptr) { recipient_bot->has_c4_ = true; }
+            }
+            game.Print ("[Jev] C4 handoff from=%s support=%s", identities_[i].id, identities_[support].id); break;
+          }
+        }
+      }
+      else if (identities_[i].carrier_tuned) { player->personality_ = static_cast<Personality> (identities_[i].personality); identities_[i].carrier_tuned = false; }
+    }
+  }
+  if (game.Time () < next_objective_scan_) { return; }
+  next_objective_scan_ = game.Time () + 0.2f;
+  edict_t *box = nullptr;
+  game.SearchEntities ("classname", "weaponbox", [&] (edict_t *entity) {
+    if (game.IsEntityModelMatches (entity, "backpack.mdl")) { box = entity; return EntitySearchResult::Break; }
+    return EntitySearchResult::Continue;
+  });
+  if (team_ == Team::Terrorist) {
+    for (const auto &client : clients) {
+      if (!client.IsUsed () || !game.IsAliveEntity (client.ent) || game.GetPlayerTeam (client.ent) != Team::Terrorist) { continue; }
+      auto *player = bots[client.ent];
+      if ((client.ent->v.weapons & (1 << static_cast<int> (Weapon::C4))) != 0 || (player != nullptr && player->has_c4_)) {
+        if (drop_known_) { TeamChat (ystl::strings.format ("Caller: bomb recovered. Return to attack %c.", t_target_)); }
+        drop_known_ = false; objective_box_ = nullptr; return;
+      }
+    }
+    if (box == nullptr) { return; }
+  }
+  else {
+    bool observed = false;
+    const auto target = drop_known_ ? objective_origin_ : (box != nullptr ? game.GetEntityOrigin (box) : objective_origin_);
+    for (int i = 0; i < 5; ++i) {
+      auto *player = Player (i);
+      if (player == nullptr || !game.IsAliveEntity (player->Ent ())) { continue; }
+      if (player->pev->origin.distance_sq (target) <= ystl::sqrf (1600.0f) && player->IsInViewCone (target) && util.IsVisible (target, player->Ent ())) { observed = true; break; }
+    }
+    if (!observed) { return; }
+    if (box == nullptr || (drop_known_ && game.GetEntityOrigin (box).distance_sq (objective_origin_) > ystl::sqrf (64.0f))) { drop_known_ = false; return; }
+  }
+  const auto origin = game.GetEntityOrigin (box);
+  if (!drop_known_ || objective_origin_.distance_sq (origin) > ystl::sqrf (24.0f)) {
+    if (!BuildObjectivePositions (origin)) { return; }
+    objective_origin_ = origin;
+  }
+  drop_known_ = true; objective_box_ = box; objective_serial_ = box->serialnumber;
+  if (team_ == Team::Terrorist) {
+    auto *current = collector_ >= 0 ? Entity (collector_) : nullptr;
+    if (current == nullptr || !game.IsAliveEntity (current)) {
+      collector_ = -1; float best = kInfiniteDistance;
+      for (int i = 0; i < 5; ++i) {
+        auto *entity = Entity (i);
+        if (entity == nullptr || !game.IsAliveEntity (entity)) { continue; }
+        const float score = entity->v.origin.distance2d (origin) + (ystl::StringRef (identities_[i].role) == "support" ? 0.0f : 4096.0f) + (identities_[i].human ? 8192.0f : 0.0f);
+        if (score < best) { best = score; collector_ = i; }
+      }
+      pending_ = false; next_poll_ = game.Time ();
+    }
+    auto *collector = collector_ >= 0 ? Player (collector_) : nullptr;
+    if (collector != nullptr && ordered_.phase == CTPhase::TRecoverBomb) {
+      collector->pickup_item_ = box; collector->pickup_type_ = Pickup::DroppedC4;
+      collector->StartTask (TaskId::PickupItem, 80.0f, kInvalidNodeIndex, 0.0f, true);
+    }
+  }
+}
+
+bool SystemOne::CanDefuse (int index) const {
+  const int identity = IdentityFor (index);
+  return !cv_systemone || team_ != Team::CT || identity < 0 || !applied_ || ordered_.phase != CTPhase::Retake || identity == defuser_;
+}
+
+bool SystemOne::Defusing (int index) const {
+  return cv_systemone && team_ == Team::CT && applied_ && ordered_.phase == CTPhase::Retake &&
+    game_state.IsBombPlanted () && !shared_plant_origin_.empty () && IdentityFor (index) == defuser_;
+}
+
+void SystemOne::ChooseDefuser (char site) {
+  auto *current = defuser_ >= 0 ? Player (defuser_) : nullptr;
+  if (current != nullptr && game.IsAliveEntity (current->Ent ())) { return; }
+  ystl::Vector target = shared_plant_origin_;
+  if (target.empty ()) {
+    for (int i = 0; i < position_count_; ++i) { if (positions_[i].zone == site) { target = positions_[i].origin; break; } }
+  }
+  const int previous = defuser_; defuser_ = -1;
+  float best = kInfiniteDistance;
+  for (int i = 0; i < 5; ++i) {
+    auto *player = Player (i);
+    if (player == nullptr || !game.IsAliveEntity (player->Ent ())) { continue; }
+    const float score = player->GetTaskId () == TaskId::DefuseBomb ? -1.0f : player->pev->origin.distance (target) / 240.0f + (player->has_defuser_ ? 5.0f : 10.0f);
+    if (score < best) { best = score; defuser_ = i; }
+  }
+  if (previous >= 0 && defuser_ >= 0) {
+    TeamChat (ystl::strings.format ("Caller: %s takes defuse on %c. Others cover.", identities_[defuser_].id, site));
+  }
+}
+
+void SystemOne::UpdateRetakeKnowledge () {
+  if (team_ != Team::CT || !game_state.IsBombPlanted ()) { return; }
+  const auto &bomb = game_state.GetBombOrigin ();
+  if (bomb.empty ()) { return; }
+  const char previous = planted_info_.Site ();
+  for (int i = 0; i < 5; ++i) {
+    auto *player = Player (i);
+    if (player == nullptr || !game.IsAliveEntity (player->Ent ())) { continue; }
+    const bool heard = !player->IsBombAudible ().empty ();
+    const bool seen = player->pev->origin.distance_sq (bomb) < ystl::sqrf (2048.0f) && player->IsInViewCone (bomb) && util.IsVisible (bomb, player->Ent ());
+    if (heard || seen) {
+      const char site = SiteFor (bomb, true);
+      if (site != 'A' && site != 'B') { continue; }
+      planted_info_.confirmed_site = site;
+      shared_plant_origin_ = bomb;
+      plant_source_ = heard ? "heard by teammate" : "seen by teammate";
+      plant_reporter_ = i;
+      break;
+    }
+    if (planted_info_.confirmed_site != '-' || game.Time () - game_state.GetTimeBombPlanted () < 1.0f) { continue; }
+    for (const char site : { 'A', 'B' }) {
+      bool covered = true, nearby = false; int goals = 0;
+      for (const auto node : graph.GetPoints (PointType::Goal)) {
+        if (SiteFor (graph[node].origin, true) != site) { continue; }
+        ++goals;
+        const float distance = player->pev->origin.distance_sq2d (graph[node].origin);
+        covered &= distance < ystl::sqrf (kBombHearDistance - 128.0f);
+        nearby |= distance < ystl::sqrf (350.0f);
+      }
+      if (goals > 0 && covered && nearby) {
+        if (site == 'A') { planted_info_.cleared_a = true; } else { planted_info_.cleared_b = true; }
+        plant_source_ = site == 'A' ? "A cleared by teammate" : "B cleared by teammate";
+        plant_reporter_ = i;
+      }
+    }
+  }
+  if (planted_info_.Site () != '-') {
+    for (auto &player : bots) {
+      if (player.team_ != Team::CT) { continue; }
+      player.bomb_search_overridden_ = true;
+      if (!shared_plant_origin_.empty ()) { player.bomb_known_ = true; }
+      if (ordered_.phase == CTPhase::Retake && !CanDefuse (player.index_) && player.GetTaskId () == TaskId::PickupItem && player.pickup_type_ == Pickup::PlantedC4) {
+        player.pickup_item_ = nullptr; player.CompleteTask ();
+      }
+    }
+    if (!shared_plant_origin_.empty ()) { bots.SetBombKnown (Team::CT); }
+  }
+  if (previous != planted_info_.Site ()) {
+    game.Print ("[Jev] Shared plant site=%c source=%s reporter=%s", planted_info_.Site (), plant_source_, plant_reporter_ >= 0 ? identities_[plant_reporter_].id : "none");
+  }
+  if (ordered_.phase == CTPhase::Retake) { ChooseDefuser (planted_info_.Site ()); }
 }
 
 bool SystemOne::CanExecuteEarly () const {
@@ -1059,7 +1399,7 @@ bool SystemOne::Cautious (int index) const {
 }
 
 bool SystemOne::Planting (int index) const {
-  if (team_ != Team::Terrorist || !applied_ || ordered_.phase < CTPhase::TExecute) { return false; }
+  if (team_ != Team::Terrorist || !applied_ || ordered_.phase != CTPhase::TExecute) { return false; }
   const int identity = IdentityFor (index);
   auto *player = identity >= 0 ? Player (identity) : nullptr;
   return player != nullptr && player->has_c4_;
@@ -1067,15 +1407,19 @@ bool SystemOne::Planting (int index) const {
 
 bool SystemOne::PlantAllowed (int index) const {
   if (team_ != Team::Terrorist || IdentityFor (index) < 0) { return true; }
-  return t_locked_ && game.Time () >= attack_time_;
+  return t_locked_ && !drop_known_ && game.Time () >= attack_time_;
 }
 
 CTDecision SystemOne::TerroristState () {
   if (!t_locked_) { return { CTPhase::TCall, '-' }; }
+  if (drop_known_ && objective_base_ >= 0 && !game_state.IsBombPlanted ()) { return { CTPhase::TRecoverBomb, t_target_ }; }
   if (game_state.IsBombPlanted ()) {
     const char site = SiteFor (game_state.GetBombOrigin (), true);
     if (site == 'A' || site == 'B') { t_target_ = site; }
     return { CTPhase::TPostPlant, t_target_ };
+  }
+  if (game.Time () >= game_state.GetRoundStartTime () && game.Time () - t_pick_time_ <= 12.0f && attack_time_ > game.Time ()) {
+    attack_time_ = game.Time (); t_early_ = true;
   }
   if (game.Time () >= attack_time_) { return { CTPhase::TExecute, t_target_ }; }
   if (t_stage_ < 2 && game.Time () >= game_state.GetRoundStartTime ()) {
@@ -1146,6 +1490,9 @@ void SystemOne::Frame () {
     }
   }
   if (applied_) { PrepareEconomy (); MaintainDrops (); }
+  UpdateBombObjective ();
+  UpdateRetakeKnowledge ();
+  UpdateCrunch ();
   const int previous_stage = t_stage_;
   const auto decision = team_ == Team::CT ? EvaluateCTState (Evidence ()) : TerroristState ();
   if (decision.phase != required_.phase || decision.site != required_.site || previous_stage != t_stage_) {
@@ -1153,7 +1500,8 @@ void SystemOne::Frame () {
     pending_ = false;
     next_poll_ = game.Time ();
     game.Print ("[Jev] %s state phase=%s target=%c", team_ == Team::CT ? "CT" : "T", CTPhaseName (required_.phase), required_.site);
-    if ((required_.phase == CTPhase::Commit || required_.phase == CTPhase::Retake || required_.phase == CTPhase::TExecute || required_.phase == CTPhase::TPostPlant || previous_stage != t_stage_) &&
+    if ((required_.phase == CTPhase::Commit || required_.phase == CTPhase::Retake || required_.phase == CTPhase::TExecute || required_.phase == CTPhase::TPostPlant || required_.phase == CTPhase::TRecoverBomb || required_.phase == CTPhase::GuardBomb ||
+        ordered_.phase == CTPhase::TRecoverBomb || ordered_.phase == CTPhase::GuardBomb || previous_stage != t_stage_) &&
         (ordered_.phase != required_.phase || ordered_.site != required_.site || previous_stage != t_stage_)) {
       ApplyFallback (); // Objective-critical orders do not wait for a cloud call.
     }
@@ -1188,7 +1536,7 @@ void SystemOne::Frame () {
         if (sscanf (response, "YJ3 %d %d %d %d %d %c %d %d %d %d %d %d %d %c", &round, &request, &nonce, &revision, &phase, &site, &formation, &timing,
               &targets[0], &targets[1], &targets[2], &targets[3], &targets[4], &extra) == 13 &&
             round == round_ && request == request_ && nonce == nonce_ && revision == roster_revision_ && game.Time () < deadline_) {
-          if (phase >= 0 && phase <= 9 && Apply (targets, "jev", static_cast<CTPhase> (phase), site, formation, timing)) {
+          if (phase >= 0 && phase <= 12 && Apply (targets, "jev", static_cast<CTPhase> (phase), site, formation, timing)) {
             break;
           }
         }

@@ -9,7 +9,7 @@ export function adaptation(state){
 }
 export function validateTPlan(state,plan){
   const t=state.t_plan;
-  if(!t||![6,7,8,9].includes(plan.phase)||!['A','B'].includes(plan.target_site))throw new Error('invalid T call');
+  if(!t||![6,7,8,9,10].includes(plan.phase)||!['A','B'].includes(plan.target_site))throw new Error('invalid T call');
   const adapt=adaptation(state),pivot=t.locked&&plan.target_site!==t.target_site;
   if(t.locked&&(plan.timing!==t.attack_delay||
     (plan.phase!==state.round_state.phase_code&&!(adapt.early&&plan.phase===8))||
@@ -18,9 +18,10 @@ export function validateTPlan(state,plan){
   const targets=state.bots.map(b=>state.positions.find(p=>p.id===plan.assignments[b.id]));
   if(targets.some(p=>!p)||new Set(targets.map(p=>p.waypoint)).size!==5)throw new Error('invalid T targets');
   const clearing=plan.phase===7||(plan.phase===6&&plan.timing>0);
-  const zone=clearing?(plan.target_site==='A'?'X':'Y'):plan.target_site;
+  const zone=plan.phase===10?'R':clearing?(plan.target_site==='A'?'X':'Y'):plan.target_site;
   const stage=plan.phase===6?0:(pivot?2:t.stage);
   if(plan.formation!==(clearing?stage:0))throw new Error('invalid clearing stage');
+  if(plan.phase===10&&(!state.bomb_objective?.dropped||plan.assignments[state.bomb_objective.collector_id]!==state.bomb_objective.pickup_position))throw new Error('bomb recovery requires assigned collector');
   if(targets.some((p,i)=>{
     if(clearing&&state.bots[i].id===t.fake_id)return p.id!==`t_${plan.target_site==='A'?'b':'a'}_1_entry`;
     return p.zone!==zone||(clearing&&p.stage!==stage);
@@ -29,6 +30,12 @@ export function validateTPlan(state,plan){
 }
 export function tPlans(state){
   const t=state.t_plan,plans={};
+  if(state.round_state.phase_code===10){
+    const o=state.bomb_objective;
+    const plan={phase:10,phase_name:phases[10],target_site:t.target_site,formation:0,timing:t.attack_delay,
+      assignments:bestAssignment(state,state.positions.filter(p=>p.zone==='R'),true,{[o.collector_id]:o.pickup_position})};
+    validateTPlan(state,plan);return {recover_bomb_first:plan};
+  }
   const add=(key,site,timing,phase,prefer=true)=>{
     const pivot=t.locked&&site!==t.target_site;
     const clearing=phase===7||(phase===6&&timing>0),zone=clearing?(site==='A'?'X':'Y'):site;

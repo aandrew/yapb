@@ -2610,6 +2610,7 @@ bool Bot::IsCreature () const {
 }
 
 void Bot::DonateC4ToHuman () {
+  if (cv_systemone) { return; } // Coordinated support carrier allocation owns C4 handoffs.
   edict_t *recipient = nullptr;
 
   if (!has_c4_) {

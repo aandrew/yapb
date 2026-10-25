@@ -227,6 +227,8 @@ void Bot::ClearTasks () {
 }
 
 void Bot::StartTask (TaskId id, float desire, int data, float time, bool resume, bool preserve_goal) {
+  if (id == TaskId::PickupItem && pickup_type_ == Pickup::DroppedC4 && !t_system_one.CanRecover (index_)) { return; }
+  if ((id == TaskId::DefuseBomb || (id == TaskId::PickupItem && pickup_type_ == Pickup::PlantedC4)) && !system_one.CanDefuse (index_)) { return; }
   if (id == TaskId::PlantBomb && !t_system_one.PlantAllowed (index_)) { return; }
   // The MVP keeps its site orders instead of chasing a last-seen enemy or
   // accepting a conflicting movement/radio order. Immediate combat still runs.
@@ -354,6 +356,7 @@ void Bot::TaskNormal () {
 
   if ((t_system_one.GunReady (index_) || system_one.Goal (index_) != -1) && UsesKnife () && HasAnyAmmo ()) { SelectBestWeapon (); }
 
+  if (t_system_one.HoldCarrier (this)) { return; }
   if (system_one.HoldPosition (this) || t_system_one.HoldPosition (this)) {
     return;
   }
@@ -378,7 +381,7 @@ void Bot::TaskNormal () {
     }
 
     // stop the bot if precisely reached debug goal
-    if (current_node_index_ == debug_goal && !t_system_one.Planting (index_)) {
+    if (current_node_index_ == debug_goal && !t_system_one.Planting (index_) && !system_one.Defusing (index_)) {
       if (distance_to_debug_origin_sq < ystl::sqrf (22.0f) && util.IsVisible (debug_origin, Ent ())) {
 
         move_to_goal_ = false;
@@ -599,10 +602,11 @@ void Bot::TaskNormal () {
     Task ()->data = dest_index;
 
     auto pst = path_type_;
-    if (system_one.Cautious (index_) || t_system_one.Cautious (index_)) {
+    if (system_one.Cautious (index_) || t_system_one.Cautious (index_) || (has_c4_ && t_system_one.GunReady (index_))) {
       pst = FindPathType::Safe;
     }
 
+    if (t_system_one.GunReady (index_) && !has_c4_ && !t_system_one.Cautious (index_)) { pst = FindPathType::Fast; }
     // override with fast path
     if (game.MapIs (MapFlags::Demolition) && game_state.IsBombPlanted ()) {
       pst = rg.chance (80) ? FindPathType::Fast : FindPathType::Optimal;

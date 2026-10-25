@@ -75,7 +75,7 @@ all-human team receives server team-chat advice.
   difficulty and one preferred caller. AWPer/lurker are cautious; entry is a
   rusher; supports are normal. Silent caller buying now uses the team-average economy policy below;
   AWP selection requires an affordable long-lane assignment.
-- `bridge/config/de_dust2.positions.json`: 45 exact graph-backed standing targets,
+- `bridge/config/de_dust2.positions.json`: 52 exact graph-backed standing targets,
   sight directions, radius, role preferences, zone and clearing stage.
 - `bridge/config/de_dust2.areas.json`: 57 draft callout areas and waypoint groups.
   A/B bomb zones are BSP-verified; fine boundaries and routes need human review.
@@ -160,7 +160,45 @@ is randomized within that configured window; actual encounter-to-shot latency
 also includes visibility and AI scheduling. Miss rates remain distance/weapon
 and situation dependent rather than a fixed accuracy percentage.
 
-Latest checks: 18 bridge tests and native CT/economy/MR12/T-adaptation tests pass.
+Latest checks: 21 bridge tests and native CT/economy/MR12/T-adaptation tests pass.
 Save/half/full purchases were exercised live. The controlled donation test did
 not produce a verified transfer; drops need further mixed-money playtesting.
 No automated bot-kill tests should run while a human uses the local match.
+
+## Shared bomb objectives and CT crunches
+
+CT plant knowledge is shared from one bot's audible/visible confirmation, or
+from a teammate covering the full hearing area of a site and hearing no bomb.
+Clearing A infers B and vice versa; contradictory clears stay unknown. Unknown
+plants remain searchable. Once known, the caller sends the team to that site.
+One living bot is assigned to defuse (travel time and kit considered), follows
+the shared coordinates directly, and is replaced if killed. The others cover
+instead of independently searching/defusing. Exact CT plant coordinates are
+sent to Jev only after a real team observation, not just the global plant event.
+
+A dropped C4 creates temporary graph-backed objective positions. T radar
+knowledge permits a recovery plan: one preferred support collects the bomb,
+the others cover. Recovery overrides the attack/fake/timer until the bomb is
+picked up, then the retained site plan resumes. CT guards require a real team
+sighting and retain only the last seen location; a confirmed empty location or
+visible carrier ends the guard. A plant always outranks guarding dropped C4.
+
+During freeze, bot C4 holders hand it to a nearby living support (including a
+support human through normal server inventory handling). With no support
+available a surviving teammate remains a fallback. Human inputs are untouched.
+Bot carriers use a cautious disposition/safe paths and wait behind teammates,
+with exceptions for planting at the site or being the last player alive.
+Rushes route the stack through the same bounded approach gate. A credited T
+kill on a CT starts execution immediately once C4 is available, without waiting
+for the original clock or another model call. Opening prompts favor more rushes.
+
+Standard defense remains the default. Crunch opportunities have a cooldown
+(two rounds when CTs are behind, four when tied/ahead), and Jev can decline
+them. After the standard opening is assigned, an eligible early poll can choose three or
+four CTs to crunch Long, Short, Mid or B tunnels. Unallocated players retain
+their assignments. Authored nodes bound the push at Long corner/blue box,
+Short stairs, Mid doors, or the B tunnel exit/upper tunnel segment. The original
+assignments are saved and restored once survivors reach the area and it goes
+quiet. A quiet stalled push times out; ongoing contact prevents an idle return.
+Plant and confirmed bomb objectives take priority. New graph-backed boundaries
+still need human playtesting.

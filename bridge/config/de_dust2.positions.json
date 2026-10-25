@@ -92,7 +92,8 @@
       ],
       "zone": "B",
       "source_waypoint": 64,
-      "stage": -1
+      "stage": -1,
+      "crunch_group": "B"
     },
     {
       "id": "b_crossfire",
@@ -277,7 +278,8 @@
         "awper"
       ],
       "source_waypoint": 613,
-      "stage": -1
+      "stage": -1,
+      "crunch_group": "S"
     },
     {
       "id": "short_crossfire",
@@ -300,7 +302,8 @@
         "support"
       ],
       "source_waypoint": 611,
-      "stage": -1
+      "stage": -1,
+      "crunch_group": "S"
     },
     {
       "id": "long_anchor",
@@ -323,7 +326,8 @@
         "support"
       ],
       "source_waypoint": 387,
-      "stage": -1
+      "stage": -1,
+      "crunch_group": "L"
     },
     {
       "id": "long_crossfire",
@@ -346,7 +350,8 @@
         "support"
       ],
       "source_waypoint": 446,
-      "stage": -1
+      "stage": -1,
+      "crunch_group": "L"
     },
     {
       "id": "t_a_0_entry",
@@ -588,7 +593,8 @@
       "preferred_roles": [
         "entry"
       ],
-      "source_waypoint": 1229
+      "source_waypoint": 1229,
+      "crunch_group": "L"
     },
     {
       "id": "t_a_2_support",
@@ -654,7 +660,8 @@
       "preferred_roles": [
         "awper"
       ],
-      "source_waypoint": 1201
+      "source_waypoint": 1201,
+      "crunch_group": "L"
     },
     {
       "id": "t_a_2_lurker",
@@ -808,7 +815,8 @@
       "preferred_roles": [
         "entry"
       ],
-      "source_waypoint": 218
+      "source_waypoint": 218,
+      "crunch_group": "B"
     },
     {
       "id": "t_b_1_support",
@@ -918,7 +926,8 @@
       "preferred_roles": [
         "entry"
       ],
-      "source_waypoint": 44
+      "source_waypoint": 44,
+      "crunch_group": "B"
     },
     {
       "id": "t_b_2_support",
@@ -1007,6 +1016,188 @@
         "lurker"
       ],
       "source_waypoint": 30
+    },
+    {
+      "id": "crunch_short_0",
+      "zone": "S",
+      "site": "A",
+      "stage": -1,
+      "origin": [
+        282.14,
+        1641.64,
+        52.03
+      ],
+      "look_at": [
+        -167,
+        965,
+        48
+      ],
+      "radius": 32,
+      "stance": "stand",
+      "preferred_roles": [
+        "entry",
+        "support",
+        "lurker",
+        "awper"
+      ],
+      "source_waypoint": 581,
+      "crunch_group": "S"
+    },
+    {
+      "id": "crunch_short_1",
+      "zone": "S",
+      "site": "A",
+      "stage": -1,
+      "origin": [
+        368.35,
+        1642.55,
+        52.03
+      ],
+      "look_at": [
+        -167,
+        965,
+        48
+      ],
+      "radius": 32,
+      "stance": "stand",
+      "preferred_roles": [
+        "entry",
+        "support",
+        "lurker",
+        "awper"
+      ],
+      "source_waypoint": 590,
+      "crunch_group": "S"
+    },
+    {
+      "id": "crunch_mid_0",
+      "zone": "M",
+      "site": "M",
+      "stage": -1,
+      "origin": [
+        -495.99,
+        1567.97,
+        -91.97
+      ],
+      "look_at": [
+        -500,
+        500,
+        48
+      ],
+      "radius": 32,
+      "stance": "stand",
+      "preferred_roles": [
+        "entry",
+        "support",
+        "lurker",
+        "awper"
+      ],
+      "source_waypoint": 286,
+      "crunch_group": "M"
+    },
+    {
+      "id": "crunch_mid_1",
+      "zone": "M",
+      "site": "M",
+      "stage": -1,
+      "origin": [
+        -322.86,
+        1614.65,
+        -91.97
+      ],
+      "look_at": [
+        -500,
+        500,
+        48
+      ],
+      "radius": 32,
+      "stance": "stand",
+      "preferred_roles": [
+        "entry",
+        "support",
+        "lurker",
+        "awper"
+      ],
+      "source_waypoint": 293,
+      "crunch_group": "M"
+    },
+    {
+      "id": "crunch_mid_2",
+      "zone": "M",
+      "site": "M",
+      "stage": -1,
+      "origin": [
+        -272.03,
+        1696.03,
+        -91.97
+      ],
+      "look_at": [
+        -500,
+        500,
+        48
+      ],
+      "radius": 32,
+      "stance": "stand",
+      "preferred_roles": [
+        "entry",
+        "support",
+        "lurker",
+        "awper"
+      ],
+      "source_waypoint": 309,
+      "crunch_group": "M"
+    },
+    {
+      "id": "crunch_mid_3",
+      "zone": "M",
+      "site": "M",
+      "stage": -1,
+      "origin": [
+        -495.97,
+        1696.03,
+        -91.97
+      ],
+      "look_at": [
+        -500,
+        500,
+        48
+      ],
+      "radius": 32,
+      "stance": "stand",
+      "preferred_roles": [
+        "entry",
+        "support",
+        "lurker",
+        "awper"
+      ],
+      "source_waypoint": 303,
+      "crunch_group": "M"
+    },
+    {
+      "id": "crunch_tunnels_0",
+      "zone": "Y",
+      "site": "B",
+      "stage": -1,
+      "origin": [
+        -1819.86,
+        1345.77,
+        68.03
+      ],
+      "look_at": [
+        -1700,
+        500,
+        48
+      ],
+      "radius": 32,
+      "stance": "stand",
+      "preferred_roles": [
+        "entry",
+        "support",
+        "lurker",
+        "awper"
+      ],
+      "source_waypoint": 215,
+      "crunch_group": "B"
     }
   ],
   "graph_sha256": "215f7fa0a08c55c95ad68a74d4c17f92960960fab4315598db84482e65a49a18"

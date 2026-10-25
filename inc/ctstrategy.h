@@ -2,11 +2,28 @@
 #pragma once
 
 namespace bot {
-enum class CTPhase { Opening = 0, Gather, Cautious, Commit, Retake, LocateBomb, TCall, TClear, TExecute, TPostPlant };
+enum class CTPhase { Opening = 0, Gather, Cautious, Commit, Retake, LocateBomb, TCall, TClear, TExecute, TPostPlant, TRecoverBomb, GuardBomb, Crunch };
+inline bool CrunchMixupAllowed (int round, int ct_score, int t_score, int last_crunch) {
+  const int gap = ct_score < t_score ? 2 : 4;
+  return round > 0 && round % gap == 0 && round - last_crunch >= gap;
+}
+struct CTBombKnowledge {
+  char confirmed_site { '-' };
+  bool cleared_a {}, cleared_b {};
+  char Site () const {
+    if (confirmed_site == 'A' || confirmed_site == 'B') { return confirmed_site; }
+    if (cleared_a == cleared_b) { return '-'; }
+    return cleared_a ? 'B' : 'A';
+  }
+};
 struct CTEvidence {
   bool deployed {}, planted {}, bomb_recent {};
   char planted_site { '-' }, bomb_site { '-' }, previous_target { '-' };
   int sightings_a {}, sightings_b {}, deaths_a {}, deaths_b {};
+  bool secured_drop {};
+  char dropped_site { 'M' };
+  bool crunch_active {};
+  char crunch_choke { '-' };
 };
 struct CTDecision {
   CTPhase phase { CTPhase::Opening };
@@ -24,6 +41,9 @@ inline const char *CTPhaseName (CTPhase phase) {
   case CTPhase::TClear: return "t_clear";
   case CTPhase::TExecute: return "t_execute";
   case CTPhase::TPostPlant: return "t_postplant";
+  case CTPhase::TRecoverBomb: return "t_recover_bomb";
+  case CTPhase::GuardBomb: return "guard_bomb";
+  case CTPhase::Crunch: return "crunch";
   }
   return "invalid";
 }
@@ -31,11 +51,13 @@ inline CTDecision EvaluateCTState (const CTEvidence &e) {
   if (e.planted) {
     return { e.planted_site == 'A' || e.planted_site == 'B' ? CTPhase::Retake : CTPhase::LocateBomb, e.planted_site };
   }
+  if (e.secured_drop) { return { CTPhase::GuardBomb, e.dropped_site }; }
   const bool a = e.sightings_a >= 2 || (e.sightings_a >= 1 && e.deaths_a >= 1);
   const bool b = e.sightings_b >= 2 || (e.sightings_b >= 1 && e.deaths_b >= 1);
   if (e.bomb_recent && ((e.bomb_site == 'A' && a) || (e.bomb_site == 'B' && b))) {
     return { CTPhase::Commit, e.bomb_site };
   }
+  if (e.crunch_active) { return { CTPhase::Crunch, e.crunch_choke }; }
   if (a || b) {
     char site = a ? 'A' : 'B';
     if (a && b) {
@@ -49,7 +71,7 @@ inline CTDecision EvaluateCTState (const CTEvidence &e) {
   return { e.deployed ? CTPhase::Gather : CTPhase::Opening, '-' };
 }
 inline bool ValidateCTPlacement (CTPhase phase, char site, int formation, const char *zones, bool holding) {
-  int a = 0, b = 0, mid = 0, short_a = 0, long_a = 0;
+  int a = 0, b = 0, mid = 0, short_a = 0, long_a = 0, guard = 0;
   for (int i = 0; i < 5; ++i) {
     switch (zones[i]) {
     case 'A': ++a; break;
@@ -57,9 +79,11 @@ inline bool ValidateCTPlacement (CTPhase phase, char site, int formation, const 
     case 'M': ++mid; break;
     case 'S': ++short_a; break;
     case 'L': ++long_a; break;
+    case 'G': ++guard; break;
     default: return false;
     }
   }
+  if (phase == CTPhase::GuardBomb) { return guard == 5 && (site == 'A' || site == 'B' || site == 'M'); }
   const bool first = b == 1 && mid == 1 && short_a == 2 && long_a == 1;
   const bool second = b == 1 && mid == 1 && a == 1 && long_a == 2;
   if (phase == CTPhase::Opening || phase == CTPhase::Gather || phase == CTPhase::LocateBomb) {

@@ -30,6 +30,13 @@ See docs/jev-mvp.md for setup, protocol, acceptance, and current limits.
   Clear in stages until the
   deadline, then execute. Entry is an aggressive disposition, not a mandatory
   lead position; never hold supports back to enforce entry-first movement.
+- A planted bomb uses shared CT hearing/visual evidence or safe site-elimination
+  inference. One defuser follows shared bomb coordinates, others cover. Prefer
+  supports to carry C4, keep bot carriers behind teammates, recover a dropped
+  bomb before T site plans, and let CTs guard a bomb they actually observed.
+- CT caller may crunch Long/Short/Mid/B tunnels with 3-4 players early. Bound
+  target nodes to the choke, save original assignments, and return when quiet.
+  A T kill on a CT can trigger immediate execution without waiting for Jev.
 - Assigned spots are bounded active holds: short safe peeks and returns, not
   frozen actors. Check body clearance, teammates and floor/drop height. Preserve
   normal combat, bomb work and immediate new orders.
