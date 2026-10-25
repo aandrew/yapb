@@ -2310,6 +2310,12 @@ void Bot::UpdateHearing () {
       continue;
     }
 
+    // Share only sounds this bot passed through the native audibility filters.
+    if (has_flag (client.noise.type, Noise::Footstep) || has_flag (client.noise.type, Noise::WeaponFire)) {
+      const char *kind = has_flag (client.noise.type, Noise::WeaponFire) ? "gunfire" : "footsteps";
+      if (team_ == Team::CT) { system_one.RecordSound (index_, client.ent, client.noise.pos, kind); }
+      else if (team_ == Team::Terrorist) { t_system_one.RecordSound (index_, client.ent, client.noise.pos, kind); }
+    }
     // preference scoring: lower is better
     float score = distance_sq;
 

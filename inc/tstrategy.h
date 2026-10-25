@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Unlicense
 #pragma once
 namespace bot {
+inline bool TPlantPermitted (bool carrier, bool in_zone, bool seeing_enemy, bool live_enemy, bool locked, bool dropped, bool deadline) {
+  return !dropped && ((carrier && in_zone && !seeing_enemy && !live_enemy) || (locked && deadline));
+}
 inline int MainGroupAnchor (const bool *eligible, const float *distances_sq, const float *route_distances_sq, int count) {
   int best = -1, largest = 0;
   for (int i = 0; i < count; ++i) {

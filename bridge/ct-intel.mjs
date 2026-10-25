@@ -28,6 +28,6 @@ export function adaptiveCTOptions(s){
  if([0,1].includes(e.phase_code)&&s.bots.filter(b=>b.alive&&b.connected).length===5&&e.elapsed<=25){
   for(const [name,code] of [['long','L'],['short','S'],['mid','M'],['b_tunnels','B']])if(s.ct_tendencies?.approaches?.[name]?.stack_recommended)out[`tendency_stack_${name}_4`]={group:code,formation:7};
  }
- if(e.phase_code===1){if(e.sightings_a>=1)out.preempt_reinforce_A={site:'A',formation:8};if(e.sightings_b>=1)out.preempt_reinforce_B={site:'B',formation:9};}
+ if(e.phase_code===1){if(e.sightings_a>=1||e.heard_a>=1)out.preempt_reinforce_A={site:'A',formation:8};if(e.sightings_b>=1||e.heard_b>=1)out.preempt_reinforce_B={site:'B',formation:9};}
  return out;
 }

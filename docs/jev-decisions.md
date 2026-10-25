@@ -111,3 +111,19 @@ Validation for this release: 44 bridge tests including database persistence/corr
 
 
 Deployment observation: both CT and T issued five-second intervals (5.00–5.01 seconds in the initial sample), and native acknowledgements populated accepted decision records using `perplexity/pplx-decider-v1.2-20261016`. One T request exceeded the 1.8-second deadline; native fallback was recorded and subsequent T decisions were accepted. This is a demonstrated handled timeout, not a claim of zero provider failures. A sent reply without acknowledgement remains `reply_sent`; it is not labelled accepted or rejected.
+
+
+## Safe planting and acoustic defense
+
+A T carrier in a legal plant zone with no active visible/live enemy target may plant before the planned execute deadline. Native normal behavior checks this before strategy holds or named-goal stopping. Obsolete Camp/Pause/MoveTo tasks are released for that safe planting opportunity. This does not force a human to plant or override native planting combat interruptions.
+
+CT bots share footsteps and gunfire only after native range/PVS/hearing filters accept the sound. Reports contain reporter, age, sound type, inferred site and coarse area coordinates; no emitter identity or exact hidden player position is sent to the caller. Reports expire after five seconds and are deduplicated internally per sound source. They are evidence of audible activity, not proof of the bomb or an exact player count. Fresh reports prompt telemetry and a decision update. A single report can offer preemptive reinforcement; two recent independent sources produce a cautious reinforcement phase, retaining opposite-site/Mid cover. Planted/dropped bomb and visual full-commit priorities remain above hearing. Current clear visual attack or multiple audible sources can interrupt a quiet crunch. The caller gives a throttled heard-pressure warning distinguishing it from bomb confirmation.
+
+CT A-side holds alternate approach and site/stairs checks every three seconds with teammates staggered. Native enemy/combat aiming remains responsible during fights. Tests: 45 bridge cases plus native planting eligibility and hearing priority regressions; movement, actual planting and realistic sound propagation need passive live/human verification.
+
+
+## Player-facing signal reports
+
+Bots on both teams now queue short team-chat messages for sightings, native-audible footsteps/gunfire, confirmed kills, visible enemy bomb carriers, own bomb recovery and planting. A living caller relays teammate deaths. Humans are never issued chat/input commands. Contact/sound topics have an eight-second cooldown; each speaker is spaced by at least two seconds after signal messages, with caller/role announcements also considered. Messages expire after six seconds, critical kill/death/objective reports can replace lower-priority queued information, and one queued message per bot bounds bursts. This is a debugging summary, not a lossless event stream; quiet structured reports and the database remain the detailed record. Exact enemy death locations are reported only when supported by the existing visual provenance.
+
+Passive verification before the chat expansion recorded two audible A footsteps, a cautious A rotation and the caller's heard-pressure warning. Ten real Decider scenarios, including an audible A-rush report, returned legal choices within the configured deadline. The final native build and all four native policy groups pass; 45 bridge tests pass. Safe early planting still needs a live opportunity/human playtest, and team chat does not prove tactical movement succeeded.

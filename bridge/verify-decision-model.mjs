@@ -6,6 +6,7 @@ const cases=[];
 function add(name,team,setup=()=>{}){const s=fixture(team);s.server_session=999;s.round_state.elapsed=10;Object.assign(s.round_state,{ct_alive:5,t_alive:5});setup(s);cases.push({name,state:s});}
 add('ct_pistol','CT',s=>s.t_plan.pistol_round=true);
 add('ct_early_a_warning','CT',s=>Object.assign(s.round_state,{phase_code:1,deployed:true,sightings_a:1}));
+add('ct_heard_a_rush','CT',s=>{Object.assign(s.round_state,{phase_code:2,deployed:true,heard_a:2});s.sound_reports=[{reporter_id:'ct_01',kind:'footsteps',age:1,site:'A',origin:[1280,2304,128],source:'native_team_hearing',approximate:true}];});
 add('ct_overrun_b','CT',s=>Object.assign(s.round_state,{site_lost_b:true,intruders_b:2,deployed:true}));
 add('ct_retake_a','CT',s=>{s.bomb_planted=true;s.bomb={planted:true,known:true,site:'A',source:'team_hearing'};s.round_state.planted_site='A';});
 add('ct_repeat_long','CT',s=>{s.t_plan.pistol_round=true;s.ct_tendencies={observed_previous_rounds:3,approaches:{long:{three_plus_rounds:3,early_three_plus_rounds:3,stack_recommended:true}}};});

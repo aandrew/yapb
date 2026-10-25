@@ -356,6 +356,12 @@ void Bot::TaskNormal () {
 
   if ((t_system_one.GunReady (index_) || system_one.Goal (index_) != -1) && UsesKnife () && HasAnyAmmo ()) { SelectBestWeapon (); }
 
+  // An arrived carrier must not wait at a named hold until the attack timer expires.
+  if (cv_systemone && game.MapIs (MapFlags::Demolition) && team_ == Team::Terrorist && has_c4_ && (pev->weapons & (1 << static_cast<int> (Weapon::C4))) != 0 && in_bomb_zone_ &&
+      t_system_one.PlantAllowed (index_) && !has_flag (states_, Sense::SeeingEnemy) && !game.IsAliveEntity (enemy_)) {
+    StartTask (TaskId::PlantBomb, TaskPri::kPlantBomb, kInvalidNodeIndex, 0.0f, true);
+    return;
+  }
   if (t_system_one.HoldCarrier (this)) { return; }
   if (system_one.HoldPosition (this) || t_system_one.HoldPosition (this)) {
     return;
@@ -1175,6 +1181,7 @@ void Bot::TaskMoveTo () {
 }
 
 void Bot::TaskPlantBomb () {
+  if (has_c4_ && in_bomb_zone_ && !game.IsAliveEntity (enemy_)) { t_system_one.ReportSignal (index_, "Planting now. Cover me.", 2); }
   aim_flags_ |= AimFlags::Camp;
 
   // we're still got the c4?
@@ -1208,6 +1215,7 @@ void Bot::TaskPlantBomb () {
 
   // done with planting
   else {
+    if (game_state.IsBombPlanted ()) { t_system_one.ReportSignal (index_, "Bomb planted. Cover the bomb and stop the defuse.", 3); }
     CompleteTask ();
 
     // tell teammates to move over here

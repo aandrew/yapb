@@ -23,6 +23,7 @@ export function gameBriefing(s){
   for(const [approach,x] of Object.entries(h.approaches))if(x.three_plus_rounds)lines.push(`We observed groups of at least three Ts toward ${approach.replaceAll('_',' ')} in ${x.three_plus_rounds} of those rounds; ${x.early_three_plus_rounds} were within the first 35 seconds. ${x.stack_recommended?'This repeated early pattern supports considering an offered four-player stack; it is a prediction, not a current sighting.':''}`);
   if(s.round_state.site_lost_a||s.round_state.site_lost_b)lines.push(`A site appears overrun: ${s.round_state.site_lost_b&&!s.round_state.site_lost_a?'B':'A'}. At least two intruders were observed, a CT recently died there, and no living teammate is currently inside its site footprint. Commit surviving defenders rather than keeping the old setup.`);
  }
+ for(const r of (s.sound_reports??[]).slice(-8))lines.push(`${r.reporter_id} heard enemy ${r.kind} toward ${site(r.site)}, around ${place({origin:r.origin})}, ${seconds(r.age??s.game_time-r.time)} ago. This is approximate acoustic evidence, not visual confirmation, an exact player count or proof the bomb is there.`);
  const contacts=s.observed_contacts??[];
  lines.push(contacts.length?'Recent teammate sightings:':'No enemy sightings were reported in the recent sighting window. This does not mean either site is empty.');
  for(const c of contacts.slice(-10))lines.push(`Enemy player ${c.enemy_id} was seen at ${place(c)}, ${site(c.site)}, ${seconds(c.age??s.game_time-c.time)} ago. This is a last sighting, not a guaranteed current position.`);

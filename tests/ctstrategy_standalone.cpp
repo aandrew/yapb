@@ -27,8 +27,9 @@ int main () {
   CTEvidence guard {}; guard.deployed=true; guard.secured_drop=true; guard.dropped_site='M';
   assert(EvaluateCTState(guard).phase==CTPhase::GuardBomb);
   guard.planted=true;guard.planted_site='B';assert(EvaluateCTState(guard).phase==CTPhase::Retake);
-  CTEvidence crunch {};crunch.deployed=true;crunch.crunch_active=true;crunch.crunch_choke='L';crunch.sightings_a=2;
+  CTEvidence crunch {};crunch.deployed=true;crunch.crunch_active=true;crunch.crunch_choke='L';
   assert(EvaluateCTState(crunch).phase==CTPhase::Crunch);
+  crunch.sightings_a=2;assert(EvaluateCTState(crunch).phase==CTPhase::Cautious);
   crunch.bomb_recent=true;crunch.bomb_site='A';assert(EvaluateCTState(crunch).phase==CTPhase::Commit);
   CTEvidence lost_site {};lost_site.deployed=true;lost_site.intruders_b=3;lost_site.crunch_active=true;lost_site.crunch_choke='L';
   assert(EvaluateCTState(lost_site).phase==CTPhase::Commit&&EvaluateCTState(lost_site).site=='B');
@@ -67,5 +68,11 @@ int main () {
   assert (ValidateCTPlacement (CTPhase::Gather, '-', 8, all_a, false) == false);
   const char reinforce[5] { 'A','A','A','B','M' };
   assert (ValidateCTPlacement (CTPhase::Gather, '-', 8, reinforce, false));
+  e = {}; e.deployed = true; e.heard_a = 1;
+  assert (EvaluateCTState (e).phase == CTPhase::Gather);
+  e.heard_a = 2; e.crunch_active = true;
+  assert (EvaluateCTState (e).phase == CTPhase::Cautious && EvaluateCTState (e).site == 'A');
+  e.planted = true; e.planted_site = 'B';
+  assert (EvaluateCTState (e).phase == CTPhase::Retake && EvaluateCTState (e).site == 'B');
   puts ("Native CT policy assertions passed.");
 }

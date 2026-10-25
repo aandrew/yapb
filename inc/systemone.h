@@ -44,6 +44,10 @@ class SystemOne {
     int slot {}, userid {}, generation {}, position { -1 };
     int difficulty { 2 }, personality {};
     bool announced {}, human {}, preferred_caller {}, carrier_tuned {};
+    char signal_chat[128] {}, last_signal[128] {};
+    float signal_next {}, signal_until {}, signal_repeat {};
+    int signal_priority {};
+    float signal_topics[6] {};
     mutable int hold_position { -1 }, hold_phase {};
     mutable float hold_next {}, hold_until {};
     mutable ystl::Vector hold_target {};
@@ -87,6 +91,15 @@ class SystemOne {
   void AppendCombatEvent (ystl::String &payload, const RoundEvent &event) const;
   void SendCombatReports ();
   void UpdateNumbers ();
+  struct HeardReport {
+    int userid {}, reporter { -1 };
+    float time { -100.0f };
+    ystl::Vector origin {};
+    char site { '-' };
+    const char *kind { "footsteps" };
+  };
+  HeardReport heard_[8] {};
+  float next_sound_chat_ {};
   Sighting sightings_[8] {};
   RoundEvent events_[32] {};
   int event_count_ {}, ct_deaths_ {}, t_deaths_ {}, event_revision_ {};
@@ -142,6 +155,7 @@ class SystemOne {
   void MaintainRoster ();
   int Caller () const;
   void TeamChat (ystl::StringRef message);
+  void FlushSignals ();
   CTDecision TerroristState ();
   CTEvidence Evidence () const;
   char SiteFor (const ystl::Vector &origin, bool planted = false) const;
@@ -172,6 +186,8 @@ public:
   bool Defusing (int index) const;
   bool CanDefuse (int index) const;
   bool PlantAllowed (int index) const;
+  void ReportSignal (int index, ystl::StringRef message, int priority = 1);
+  void RecordSound (int observer, edict_t *emitter, const ystl::Vector &origin, const char *kind);
   bool HoldCarrier (Bot *player) const;
   bool CanRecover (int index) const;
   void ObserveEnemy (Bot *observer, edict_t *enemy, const ystl::Vector &origin);

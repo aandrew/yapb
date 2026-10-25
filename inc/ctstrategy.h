@@ -28,6 +28,7 @@ struct CTBombKnowledge {
 struct CTEvidence {
   bool deployed {}, planted {}, bomb_recent {};
   char planted_site { '-' }, bomb_site { '-' }, previous_target { '-' };
+  int heard_a {}, heard_b {};
   int sightings_a {}, sightings_b {}, deaths_a {}, deaths_b {}, intruders_a {}, intruders_b {};
   bool secured_drop {}, lost_a {}, lost_b {};
   char dropped_site { 'M' };
@@ -69,7 +70,7 @@ inline CTDecision EvaluateCTState (const CTEvidence &e) {
   }
   if (e.lost_a || e.lost_b) { return { CTPhase::Commit, e.lost_b && !e.lost_a ? 'B' : 'A' }; }
   if (e.intruders_a >= 3 || e.intruders_b >= 3) { return { CTPhase::Commit, e.intruders_b > e.intruders_a ? 'B' : 'A' }; }
-  if (e.crunch_active) { return { CTPhase::Crunch, e.crunch_choke }; }
+  if (e.crunch_active && !a && !b && e.heard_a < 2 && e.heard_b < 2) { return { CTPhase::Crunch, e.crunch_choke }; }
   if (a || b) {
     char site = a ? 'A' : 'B';
     if (a && b) {
@@ -80,6 +81,7 @@ inline CTDecision EvaluateCTState (const CTEvidence &e) {
     }
     return { CTPhase::Cautious, site };
   }
+  if (e.heard_a >= 2 || e.heard_b >= 2) { return { CTPhase::Cautious, e.heard_b > e.heard_a ? 'B' : 'A' }; }
   return { e.deployed ? CTPhase::Gather : CTPhase::Opening, '-' };
 }
 inline bool ValidateCTPlacement (CTPhase phase, char site, int formation, const char *zones, bool holding) {

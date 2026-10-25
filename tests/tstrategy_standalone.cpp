@@ -25,5 +25,10 @@ int main () {
  assert(!TCanRetarget(false,1,4,7,false));
  assert(!TCanRetarget(false,3,1,7,false));
  assert(!TCanRetarget(false,2,3,9,true));
+ assert(TPlantPermitted(true,true,false,false,true,false,false)); // Safe arrival before execute deadline.
+ assert(!TPlantPermitted(true,false,false,false,true,false,false));
+ assert(!TPlantPermitted(true,true,true,true,true,false,false));
+ assert(!TPlantPermitted(true,true,false,false,true,true,false));
+ assert(TPlantPermitted(true,false,false,false,true,false,true));
  puts("Native casualty-based T execution and retarget guards passed.");
 }

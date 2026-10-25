@@ -31,3 +31,14 @@ test('overrun-site report commits survivors immediately and current pressure win
  assert.deepEqual(assessCT(x),{phase:3,site:'B'});
  for(const plan of Object.values(plansFor(x)))assert.ok(Object.values(plan.assignments).every(id=>x.positions.find(p=>p.id===id).site==='B'));
 });
+
+test('native hearing supports early reinforcement without fabricating visual intruders or bomb confirmation',()=>{
+ const x=s();Object.assign(x.round_state,{deployed:true,phase_code:1,heard_a:1});
+ x.sound_reports=[{reporter_id:'ct_01',kind:'footsteps',age:1,site:'A',origin:[1280,2304,128],approximate:true,source:'native_team_hearing'}];
+ assert.equal(assessCT(x).phase,1);assert.ok(plansFor(x).preempt_reinforce_A);
+ assert.match(requestFor(x).state.briefing,/approximate acoustic evidence/);
+ x.round_state.heard_a=2;x.round_state.phase_code=2;
+ assert.deepEqual(assessCT(x),{phase:2,site:'A'});assert.equal(x.round_state.intruders_a??0,0);
+ for(const plan of Object.values(plansFor(x)))validatePlan(x,plan);
+ x.bomb_planted=true;x.round_state.planted_site='B';assert.equal(assessCT(x).phase,4);
+});
