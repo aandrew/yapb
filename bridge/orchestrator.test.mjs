@@ -22,7 +22,7 @@ test('quiet kill report reaches the next model state with observation provenance
  assert.equal(o.ingestCombat(packet('T',e)),true);assert.equal(o.ingestCombat(packet('T',e)),false);
  const s=state();s.round_events=[e];const view=o.callerView(s);assert.equal(view.combat_reports.length,1);
  assert.equal(view.combat_reports[0].target.site,'B');assert.equal(view.combat_reports[0].target.source,'shooter_visible');
- assert.equal(requestFor(view).state.combat_reports[0].reporter_id,'t_01');assert.equal(view.site_intel.B.confirmed_defender_losses,1);
+ assert.match(requestFor(view).state.briefing,/t_01 reports an enemy kill/);assert.equal(view.site_intel.B.confirmed_defender_losses,1);
 });
 test('final-round death reports survive into next poll as labelled previous-round history',()=>{
  let now=1000;const o=new SilentOrchestrator({now:()=>now});o.ingestWorld(world());
@@ -70,10 +70,10 @@ test('map strategy books supply eligible actionable choices and derived caller s
  const o=new SilentOrchestrator(),s=state();s.t_plan.pistol_round=true;
  const view=o.callerView(s),req=requestFor(view);
  assert.equal(view.orchestrator_status.knowledge,'team_reports_and_public_status');
- assert.ok(req.state.strategy_book.strategies.some(s=>s.id==='pistol_rush_a'&&s.choices.includes('rush_A')));
+ assert.match(req.questions.deployment.criteria.rush_A,/Pistol group attack A/);
  s.t_plan.pistol_round=false;s.t_plan.rush_allowed=false;
- assert.ok(!requestFor(o.callerView(s)).state.strategy_book.strategies.some(s=>s.rounds==='pistol'));
+ assert.ok(!JSON.stringify(requestFor(o.callerView(s))).includes('Pistol group attack A'));
  const cs=state('CT');cs.t_plan.pistol_round=true;
  const ct=requestFor(o.callerView(cs));
- assert.deepEqual(ct.state.strategy_book.strategies.map(s=>s.id),['passive_pistol']);
+ assert.match(ct.questions.deployment.criteria.two_b_two_a_ct,/two B two A CT/);
 });

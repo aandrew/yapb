@@ -45,7 +45,7 @@ socket.on('message', async (buffer, peer) => {
   const start=performance.now();
   record({event:'request',state});
   try {
-    const result = await decide(state, {apiKey:process.env.OPENROUTER_API_KEY});
+    const result = await decide(state, {apiKey:process.env.OPENROUTER_API_KEY,onRequest:request=>record({event:'model_request',team:state.team,round:state.round,request_id:state.request,payload:request})});
     const reply=Buffer.from(wireReply(state,result.plan));
     seen.set(key,reply);
     socket.send(reply, peer.port, peer.address);

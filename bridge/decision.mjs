@@ -1,3 +1,4 @@
+import {gameBriefing,describeChoices,callerInstructions} from './briefing.mjs';
 import {strategyContext,chosenStrategy} from './strategies.mjs';
 import {roles} from './config.mjs';
 import {ctPlans,validateTacticalPlacement} from './round-policy.mjs';
@@ -37,11 +38,8 @@ export function plansFor(state){
 }
 export function requestFor(state,model='typesafe/jev-1.14'){
   const plans=plansFor(state);
-  return {model,state:{...state,strategy_book:strategyContext(state,plans)},questions:{deployment:{type:'choice',instructions:state.team==='T'?
-    'Prefer a five-player rush on pistol rounds. On other rounds, delayed or reactive attacks are the default. Only use a supplied non-pistol rush as an occasional mix-up. A fresh pick permits immediate execution only when its observed location matches the attack site. A confirmed pick on the other site may justify the supplied optional pivot there. Unknown-location kills must not be treated as site openings. When the bomb is dropped, the whole team recovers it before every site plan. After recovery choose A or B again using site_intel, sightings and confirmed defender losses. Unknown is not empty. The carrier must stay on the main support route with the majority, never lurk or fake. Quiet combat_reports give teammate kill/death locations; the omniscient orchestrator world is separate from this caller view. Supports are preferred bomb carriers and stay behind teammates. A delayed attack runs with guns to ready positions and only sneaks near quiet chokepoints. Once exposed run more. A single designated fake may approach the alternate site but must hold outside and rejoin on execute. Clear in stages: entry has an aggressive disposition without a mandatory lead position, supports trade/watch flanks, lurker trails or takes the alternate route. Keep the original execute clock. Only describe a man advantage when living Ts strictly outnumber living CTs. Equal numbers such as 4v4 are a trade or site pick, not a man advantage. Use confirmed on-site picks for the supplied early execute. After heavy own casualties, consider the supplied one-time site switch. Use actual sightings to judge whether the site is weak, and do not invent defender positions. At attack time commit directly to the site. Humans receive caller advice, never movement control. Use orchestrator_status and the map strategy_book to inform the opening choice. Choose only a supplied complete-team order.':
-    'Use orchestrator_status and the map strategy_book to inform the opening choice. Choose a complete CT placement consistent with the supplied round phase. At round start choose a supplied defense from the eligible map strategy book for pistol, buy, half-buy or save circumstances. Conditions such as utility and favorable spawns are preferences, not guaranteed coordinated actions. Standard defense is the default. Only use a crunch as an occasional mix-up, especially when losing. During an eligible early gather phase consider a supplied three- or four-player crunch of Long, Short, Mid or B tunnels. Stay inside the supplied stopping area. After fighting stops the engine returns everyone to their original positions. Gather information without needless movement. Three or more Ts observed inside a bombsite require an immediate full rotation there, even before bomb confirmation. A clear attack on an approach permits cautious reinforcement; a confirmed bomb attack commits everyone; a planted bomb requires all surviving defenders to retake. Use only actual team observations and public deaths, never hidden enemy locations. Humans receive role/objective advice, never movement control.',
-    criteria:Object.fromEntries(Object.entries(plans).map(([key,p])=>[key,
-      `${p.phase_name}; target ${p.target_site}; attack delay ${p.timing}s; ${Object.entries(p.assignments).map(([id,pos])=>`${id} -> ${pos}`).join('; ')}`]))}}};
+  return {model,state:{briefing:gameBriefing(state)},questions:{deployment:{type:'choice',
+    instructions:callerInstructions,criteria:describeChoices(state,plans)}}};
 }
 export function decodeAnswer(state,body){
   const answer=body?.answers?.deployment,plans=plansFor(state),plan=plans[answer?.choice];
@@ -54,11 +52,13 @@ export function wireReply(state,plan){
   const targets=state.bots.map(b=>state.positions.findIndex(p=>p.id===plan.assignments[b.id]));
   return `YJ3 ${state.round} ${state.request} ${state.nonce} ${state.roster_revision} ${plan.phase} ${plan.target_site} ${plan.formation} ${plan.timing} ${targets.join(' ')}${plan.strategy_name?' |'+plan.strategy_name.replace(/[^a-zA-Z0-9 -]/g,' ').replace(/ +/g,' ').trim().slice(0,90):''}`;
 }
-export async function decide(state,{apiKey,fetchFn=fetch,timeout=1800}={}){
+export async function decide(state,{apiKey,fetchFn=fetch,timeout=1800,onRequest}={}){
   if(!apiKey)throw new Error('missing OpenRouter key');
+  const request=requestFor(state);
+  onRequest?.(request);
   const response=await fetchFn('https://openrouter.ai/api/alpha/decisions',{
     method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json','X-Title':'YaPB Jev Local MVP'},
-    body:JSON.stringify(requestFor(state)),signal:AbortSignal.timeout(timeout)});
+    body:JSON.stringify(request),signal:AbortSignal.timeout(timeout)});
   if(!response.ok)throw new Error(`OpenRouter HTTP ${response.status}`);
   return decodeAnswer(state,await response.json());
 }

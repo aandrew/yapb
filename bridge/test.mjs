@@ -113,3 +113,16 @@ test('opening reply carries the applicable strategy name safely for one native a
  assert.equal(selected.strategy.id,'half_buy_a');
  assert.ok(!wireReply(t,{...selected.plan,strategy_name:'unsafe;"say test\n'}).includes(';'));
 });
+
+test('model gets a literal briefing and actionable calls, while raw state stays local',()=>{
+ const s=fixture('T');s.t_plan.pistol_round=true;Object.assign(s.round_state,{ct_alive:4,t_alive:4});
+ s.bots[3].carrying_c4=true;
+ const req=requestFor(s),json=JSON.stringify(req);
+ assert.deepEqual(Object.keys(req.state),['briefing']);
+ assert.match(req.state.briefing,/Numbers are even/);assert.match(req.state.briefing,/t_04; keep it behind the main group/);
+ assert.match(req.questions.deployment.criteria.rush_A,/Attack bombsite A immediately/);
+ assert.match(req.questions.deployment.instructions,/Hypothetical examples, not events/);
+ for(const key of ['origin','waypoint','phase_code','nonce','roster_revision','positions'])assert.ok(!Object.hasOwn(req.state,key));
+ assert.ok(!json.includes('look_at'));assert.ok(!json.includes('preferred_roles'));
+ const {briefing}=requestFor(s).state;assert.ok(!briefing.includes('guaranteed current position at'));
+});
