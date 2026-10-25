@@ -1835,7 +1835,7 @@ void SystemOne::Frame () {
     next_chat_ = game.Time () + 1.2f;
   }
   UpdateNumbers ();
-  if (applied_ && game.Time () >= next_chat_) {
+  if (applied_ && strategy_chat_[0] == '\0' && game.Time () >= next_chat_) {
     for (int i = 0; i < 5; ++i) {
       auto &identity = identities_[i];
       if (!identity.announced && Entity (i) != nullptr) {
