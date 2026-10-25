@@ -795,7 +795,7 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
       for (int i = 0; i < 5; ++i) { if (targets[i] != crunch_home_[i]) { return false; } }
     }
     else if (phase != required_.phase || site != required_.site || timing != 0 || !ValidateCTPlacement (phase, site, formation, zones, holding)) { return false; }
-    if ((formation == 1 || formation == 2) && phase != CTPhase::Crunch) {
+    if ((formation >= 1 && formation <= 5) && phase != CTPhase::Crunch) {
       int alive = 0; bool a = false, b = false, mid = false;
       for (int i = 0; i < 5; ++i) { auto *entity = Entity (i); if (entity != nullptr && game.IsAliveEntity (entity)) { ++alive; a |= positions_[targets[i]].site == 'A'; b |= positions_[targets[i]].site == 'B'; mid |= positions_[targets[i]].site == 'M'; } }
       if ((alive >= 2 && (!a || !b)) || (alive == 1 && !mid)) { return false; }

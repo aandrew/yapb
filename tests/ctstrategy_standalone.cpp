@@ -55,5 +55,12 @@ int main () {
   assert (!ValidateCTPlacement (CTPhase::Retake, 'B', 0, all_a, false));
   assert (ValidateCTPlacement (CTPhase::Gather, '-', 0, all_a, true));
   assert (!ValidateCTPlacement (CTPhase::Gather, '-', 0, all_a, false));
+  const char split[5] { 'B','B','M','A','L' }, pistol[5] { 'B','B','A','A','M' };
+  const char half[5] { 'B','M','S','S','A' }, eco[5] { 'B','B','B','B','A' };
+  assert (ValidateCTPlacement (CTPhase::Opening, '-', 3, split, false));
+  assert (ValidateCTPlacement (CTPhase::Opening, '-', 4, pistol, false));
+  assert (ValidateCTPlacement (CTPhase::Opening, '-', 5, half, false));
+  assert (ValidateCTPlacement (CTPhase::Opening, '-', 6, eco, false));
+  assert (!ValidateCTPlacement (CTPhase::Opening, '-', 6, split, false));
   puts ("Native CT policy assertions passed.");
 }

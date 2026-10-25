@@ -86,3 +86,17 @@ test('callout areas distinguish floors and retain aliases',()=>{
  assert.equal(areas.length,57);assert.equal(resolveArea('B Window').id,'b_window');
  assert.equal(areaFor([400,2300,-88]).id,'ct_spawn');assert.equal(areaFor([400,2300,164]).id,'short_a');
 });
+
+ test('CT strategy categories offer supported matching formations and T has ten grounded entries',async()=>{
+  const {loadStrategies,strategyContext}=await import('./strategies.mjs');
+  assert.equal(loadStrategies('de_dust2','T').strategies.length,10);
+  for(const [category,pistol,mode,key,formation] of [
+   ['pistol',true,'save','two_b_two_a_ct',4],['buy',false,'full','two_b_mid_a_long',3],
+   ['half_buy',false,'half','b_mid_two_close_short_a',5],['save',false,'save','four_b_one_a',6]]){
+   const s=fixture('CT');s.t_plan.pistol_round=pistol;s.economy={ready:true,mode};
+   const plans=plansFor(s);assert.equal(plans[key].formation,formation);validatePlan(s,plans[key]);
+   const book=strategyContext(s,plans);assert.equal(book.round_category,category);
+   assert.ok(book.strategies.some(x=>x.choices.includes(key)));
+   assert.ok(book.strategies.every(x=>x.rounds===category));
+  }
+ });

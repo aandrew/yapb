@@ -1198,6 +1198,75 @@
       ],
       "source_waypoint": 215,
       "crunch_group": "B"
+    },
+    {
+      "id": "a_pistol_short",
+      "site": "A",
+      "origin": [
+        1023.97,
+        2407.17,
+        164.03
+      ],
+      "look_at": [
+        350,
+        1800,
+        132
+      ],
+      "radius": 40,
+      "stance": "stand",
+      "preferred_roles": [
+        "entry",
+        "support"
+      ],
+      "zone": "A",
+      "source_waypoint": 1182,
+      "stage": -1
+    },
+    {
+      "id": "a_pistol_long",
+      "site": "A",
+      "origin": [
+        1268.86,
+        2383.16,
+        164.03
+      ],
+      "look_at": [
+        1450,
+        1200,
+        48
+      ],
+      "radius": 40,
+      "stance": "stand",
+      "preferred_roles": [
+        "lurker",
+        "support"
+      ],
+      "zone": "A",
+      "source_waypoint": 709,
+      "stage": -1
+    },
+    {
+      "id": "ct_spawn_rotator",
+      "site": "M",
+      "zone": "M",
+      "origin": [
+        54.67,
+        2368.0,
+        -91.97
+      ],
+      "look_at": [
+        -500,
+        1650,
+        -60
+      ],
+      "radius": 48,
+      "stance": "stand",
+      "preferred_roles": [
+        "awper",
+        "support"
+      ],
+      "source_waypoint": 329,
+      "stage": -1
     }
   ],
   "graph_sha256": "215f7fa0a08c55c95ad68a74d4c17f92960960fab4315598db84482e65a49a18"

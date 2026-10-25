@@ -4,19 +4,55 @@
     {
       "id": "short_defense",
       "name": "B Mid two Short one Long",
-      "rounds": "any",
-      "when": "Balanced opening including pistol rounds, with extra Short coverage. Use when Short pressure is likely from prior-round reports.",
+      "rounds": "buy",
+      "when": "Use on Dust2 when prior rounds suggest Short pressure. One holds B, one watches Mid, two cover Short from separate tradeable positions, and one holds Long defensively. Keep the Mid player available to support B against a split; do not rotate both Short players on unconfirmed contact.",
       "plan_prefixes": [
         "b_mid_two_short_one_long"
       ]
     },
     {
-      "id": "long_defense",
+      "id": "long_control",
       "name": "B Mid A two Long",
-      "rounds": "any",
-      "when": "Balanced alternative including pistol rounds. Prefer when prior-round reports suggest Long pressure and A needs site cover.",
+      "rounds": "buy",
+      "when": "Use when two CTs have favorable Long spawns and enough flashes to contest Long together. One holds B, one watches Mid, one covers Short from A, and two take Long with a flash and immediate trade support. Once Long is secure, one Long player can fall back toward A to strengthen Short coverage.",
       "plan_prefixes": [
         "b_mid_a_two_long"
+      ]
+    },
+    {
+      "id": "b_split_defense",
+      "name": "two B Mid A Long",
+      "rounds": "buy",
+      "when": "Use against repeated B rushes or Mid-to-B splits. Two B defenders cover Upper Tunnels from separate positions, the Mid player watches the split through Mid Doors, one A player covers Short, and one holds Long defensively. B defenders delay with grenades and trade contact; rotate the Mid player only when the split route is accounted for.",
+      "plan_prefixes": [
+        "two_b_mid_a_long"
+      ]
+    },
+    {
+      "id": "passive_pistol",
+      "name": "two B two A CT",
+      "rounds": "pistol",
+      "when": "Use on the opening pistol round when you want close supporting fights and have no reliable read. Two hold B, two defend A with separate Short and Long responsibilities, and the fifth plays CT spawn as a rotator while checking Mid Doors. Let attackers enter effective USP range, trade together, and rotate on bomb information or a committed site entry.",
+      "plan_prefixes": [
+        "two_b_two_a_ct"
+      ]
+    },
+    {
+      "id": "short_half_buy",
+      "name": "B Mid two close Short A",
+      "rounds": "half_buy",
+      "when": "Use when a limited purchase preserves the next full buy and opponents regularly approach Short. One holds B, one watches Mid safely, two set a close Short crossfire, and one plays A to watch Long and support their retreat. Use an affordable flash to start the Short fight together, then recover a dropped weapon and reposition. Avoid extended Long or Mid duels with weak weapons.",
+      "plan_prefixes": [
+        "b_mid_two_close_short_a"
+      ]
+    },
+    {
+      "id": "b_eco_stack",
+      "name": "four B one A",
+      "rounds": "save",
+      "when": "Use on an eco round when B is a strong opponent tendency and the team must preserve money for the next buy. Four stack B in spread close-range positions covering the tunnel exit and site entrance from Mid; one plays A defensively for information. Let the attackers commit before revealing the stack, then trade for a weapon. If the bomb is confirmed A, group for weapon recovery or preserve recovered equipment when a retake is unrealistic.",
+      "plan_prefixes": [
+        "four_b_one_a"
       ]
     }
   ]

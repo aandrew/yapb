@@ -1,3 +1,4 @@
+import {roundCategory} from './strategies.mjs';
 export const phases=['round_start','gather_info','cautious_rotate','committed_rotate','retake','locate_bomb',
   't_call','t_clear','t_execute','t_postplant','t_recover_bomb','guard_bomb','crunch','t_reassess_after_recovery'];
 export function assessCT(state) {
@@ -37,7 +38,11 @@ export function validateTacticalPlacement(state,plan) {
   const second=counts.B===1&&counts.M===1&&counts.A===1&&counts.L===2;
   const hold=state.bots.every(b=>b.position===plan.assignments[b.id]);
   const valid=phase===11?counts.G===5:phase===0||phase===1||phase===5?
-    (phase!==0&&plan.formation===0&&hold)||(plan.formation===1&&first)||(plan.formation===2&&second):
+    (phase!==0&&plan.formation===0&&hold)||(plan.formation===1&&first)||(plan.formation===2&&second)||
+    (plan.formation===3&&counts.B===2&&counts.M===1&&counts.A===1&&counts.L===1)||
+    (plan.formation===4&&counts.B===2&&counts.A===2&&counts.M===1)||
+    (plan.formation===5&&counts.B===1&&counts.M===1&&counts.S===2&&counts.A===1)||
+    (plan.formation===6&&counts.B===4&&counts.A===1):
     phase===2?(counts[site]===3&&counts[site==='A'?'B':'A']===1&&counts.M===1):
     (phase===3||phase===4)&&counts[site]===5;
   if(!valid)throw new Error('placement violates CT round policy');
@@ -78,7 +83,7 @@ export function ctPlans(state) {
   }
   const add=(key,targets,formation=0,preferRoles=true)=>{
     const fixed={},living=state.bots.filter(b=>b.alive);
-    if([1,2].includes(formation)&&living.length<5&&living.length>0){
+    if(formation>=1&&formation<=5&&living.length<5&&living.length>0){
       if(living.length===1)fixed[living[0].id]=targets.find(p=>p.site==='M').id;
       else {
         const b=targets.find(p=>p.site==='B'),a=targets.find(p=>p.site==='A');
@@ -96,6 +101,11 @@ export function ctPlans(state) {
   if([0,1,5].includes(phase)){
     add('b_mid_two_short_one_long',[...take(state,'B',1),...take(state,'M',1),...take(state,'S',2),...take(state,'L',1)],1);
     add('b_mid_a_two_long',[...take(state,'B',1),...take(state,'M',1),...take(state,'A',1),...take(state,'L',2)],2);
+    const category=roundCategory(state);
+    if(category==='buy')add('two_b_mid_a_long',[...take(state,'B',2),...take(state,'M',1),...take(state,'A',1),...take(state,'L',1)],3);
+    if(category==='pistol')add('two_b_two_a_ct',[...take(state,'B',2),state.positions.find(p=>p.id==='a_pistol_short'),state.positions.find(p=>p.id==='a_pistol_long'),state.positions.find(p=>p.id==='ct_spawn_rotator')],4);
+    if(category==='half_buy')add('b_mid_two_close_short_a',[...take(state,'B',1),...take(state,'M',1),...['crunch_short_0','crunch_short_1','a_anchor'].map(id=>state.positions.find(p=>p.id===id))],5);
+    if(category==='save')add('four_b_one_a',[...take(state,'B',4),...take(state,'A',1)],6);
   }else if(phase===11){
     add('guard_dropped_bomb',take(state,'G',5));
   }else if(phase===2){

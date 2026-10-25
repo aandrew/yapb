@@ -99,7 +99,11 @@ inline bool ValidateCTPlacement (CTPhase phase, char site, int formation, const 
   const bool second = b == 1 && mid == 1 && a == 1 && long_a == 2;
   if (phase == CTPhase::Opening || phase == CTPhase::Gather || phase == CTPhase::LocateBomb) {
     return ((phase != CTPhase::Opening) && formation == 0 && holding) ||
-      (formation == 1 && first) || (formation == 2 && second);
+      (formation == 1 && first) || (formation == 2 && second) ||
+      (formation == 3 && b == 2 && mid == 1 && a == 1 && long_a == 1) ||
+      (formation == 4 && b == 2 && a == 2 && mid == 1) ||
+      (formation == 5 && b == 1 && mid == 1 && short_a == 2 && a == 1) ||
+      (formation == 6 && b == 4 && a == 1);
   }
   if (phase == CTPhase::Cautious) {
     return (site == 'A' && a == 3 && b == 1 && mid == 1) || (site == 'B' && b == 3 && a == 1 && mid == 1);

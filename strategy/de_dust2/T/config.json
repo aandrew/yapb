@@ -36,6 +36,60 @@
       "plan_prefixes": [
         "clear_then_B"
       ]
+    },
+    {
+      "id": "buy_a_pressure",
+      "name": "Full buy: probe and execute A",
+      "rounds": "buy",
+      "when": "Use with rifles and utility when prior-round reports favor an A opening. Gather observed information on the existing A route, trade contact and use a confirmed A pick to execute early. Keep the original execute deadline and bomb behind the main group.",
+      "plan_prefixes": [
+        "clear_then_A"
+      ]
+    },
+    {
+      "id": "buy_b_pressure",
+      "name": "Full buy: probe and execute B",
+      "rounds": "buy",
+      "when": "Use with rifles and utility against repeated A-heavy defenses or confirmed B defender losses. Stage on the existing B route, watch the flank and commit together on the execute call. Unknown B information does not establish an empty site.",
+      "plan_prefixes": [
+        "clear_then_B"
+      ]
+    },
+    {
+      "id": "half_buy_a",
+      "name": "Half buy: grouped A trades",
+      "rounds": "half_buy",
+      "when": "Use on a limited purchase when observed A pressure can produce close trades and a recoverable weapon. Stay grouped on the existing A route, avoid isolated sniper duels and keep the bomb behind supports. Do not spend beyond the coordinated half-buy allowance.",
+      "plan_prefixes": [
+        "clear_then_A"
+      ]
+    },
+    {
+      "id": "half_buy_b",
+      "name": "Half buy: grouped B trades",
+      "rounds": "half_buy",
+      "when": "Use when the limited purchase suits grouped tunnel fights better than open A approaches. Stage together on the existing B route, trade the entry and recover weapons where safe. Do not send the bomb on a fake or lurk.",
+      "plan_prefixes": [
+        "clear_then_B"
+      ]
+    },
+    {
+      "id": "save_a",
+      "name": "Save: economical A attempt",
+      "rounds": "save",
+      "when": "Use when preserving money and current reports make A the better opportunity. Use the existing staged A attack, stay close enough to trade for a weapon and avoid unsupported Long duels. A recovered bomb must be secured before reassessing the site.",
+      "plan_prefixes": [
+        "clear_then_A"
+      ]
+    },
+    {
+      "id": "save_b",
+      "name": "Save: economical B attempt",
+      "rounds": "save",
+      "when": "Use on a save round when B is favored by opponent tendencies or confirmed defender losses. Group on the existing B route and trade for weapons while protecting the bomb. Do not mistake an unknown site for a clear one or override team purchase limits.",
+      "plan_prefixes": [
+        "clear_then_B"
+      ]
     }
   ]
 }

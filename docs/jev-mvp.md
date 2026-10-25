@@ -234,3 +234,10 @@ Bridge verification: 33 tests across test.mjs, t-approach.test.mjs, objectives.t
 ### Forward checking holds
 
 Dust2 Long defense holds now sit two connected graph steps farther toward Long doors (nodes 389/448), with aim directed down the approach. Short holds move from the rear platform to the first stair step (582/593), facing down Short. The T A stage-one entry advances one connected step (830). Both sides use short forward-diagonal checks as well as shoulder peeks, retaining body/teammate clearance and floor-height checks. Carriers keep lateral peeks without the extra forward step. These are bounded local checks and revised standing points, not a new caller strategy. The DLL build and 33 bridge tests pass; corner visibility and tactical quality require live playtesting.
+
+
+### Economy-specific strategy expansion
+
+Dust2 now has six CT book entries and ten T entries. CT formation IDs 3-6 add two-B split defense, passive pistol (two B, two A, CT-spawn rotator), close Short half-buy and four-B eco stack. Native validation mirrors bridge validation. Round filters prioritize the pistol flag, then full/last-round, half or save economy modes. Applicable CT opening books restrict the offered opening choices; unknown economy retains base fallback choices.
+
+T retains the four starter entries and adds full-buy A/B pressure, half-buy A/B trades and save A/B attempts. These use existing staging routes with economy-specific selection guidance. Config prose does not implement synchronized flashes, automatic equipment recovery/saving, or Long fallback choreography. Verification: 34 bridge tests, all four native policy groups and DLL build passed. New placements still need human playtesting.

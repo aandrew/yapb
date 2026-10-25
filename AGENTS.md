@@ -8,8 +8,8 @@ See docs/jev-mvp.md for setup, protocol, acceptance, and current limits.
   Humans replace named bots; send humans team-chat advice, never input commands.
   Dead or disconnected identities stay in the roster; never renumber them.
 - Use one team-level choice, not independent per-bot choices. CT round policy
-  now replaces the original 3-A/2-B test: openings are B/Mid/Short/Short/Long
-  or B/Mid/A/Long/Long. Clear attacks allow cautious reinforcement; confirmed
+  now replaces the original 3-A/2-B test: openings use the map strategy book: balanced buy defenses, B-split defense,
+  passive pistol, close Short half-buy, or B eco stack. Clear attacks allow cautious reinforcement; confirmed
   bomb attacks commit all identities, and planted bombs trigger a full retake.
 - Phase transitions must be supported by recent CT observations and public
   kill/death information. Keep hidden live enemy positions and bomb-carrier locations in the silent

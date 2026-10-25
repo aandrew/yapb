@@ -73,6 +73,7 @@ test('map strategy books supply eligible actionable choices and derived caller s
  assert.ok(req.state.strategy_book.strategies.some(s=>s.id==='pistol_rush_a'&&s.choices.includes('rush_A')));
  s.t_plan.pistol_round=false;s.t_plan.rush_allowed=false;
  assert.ok(!requestFor(o.callerView(s)).state.strategy_book.strategies.some(s=>s.rounds==='pistol'));
- const ct=requestFor(o.callerView(state('CT')));
- assert.equal(ct.state.strategy_book.strategies.length,2);
+ const cs=state('CT');cs.t_plan.pistol_round=true;
+ const ct=requestFor(o.callerView(cs));
+ assert.deepEqual(ct.state.strategy_book.strategies.map(s=>s.id),['passive_pistol']);
 });
