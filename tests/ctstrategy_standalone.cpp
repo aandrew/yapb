@@ -24,6 +24,9 @@ int main () {
   CTEvidence crunch {};crunch.deployed=true;crunch.crunch_active=true;crunch.crunch_choke='L';crunch.sightings_a=2;
   assert(EvaluateCTState(crunch).phase==CTPhase::Crunch);
   crunch.bomb_recent=true;crunch.bomb_site='A';assert(EvaluateCTState(crunch).phase==CTPhase::Commit);
+  CTEvidence lost_site {};lost_site.deployed=true;lost_site.intruders_b=3;lost_site.crunch_active=true;lost_site.crunch_choke='L';
+  assert(EvaluateCTState(lost_site).phase==CTPhase::Commit&&EvaluateCTState(lost_site).site=='B');
+  lost_site.intruders_b=2;lost_site.crunch_active=false;lost_site.sightings_b=2;assert(EvaluateCTState(lost_site).phase==CTPhase::Cautious);
   CTEvidence e {};
   assert (EvaluateCTState (e).phase == CTPhase::Opening);
   e.deployed = true; assert (EvaluateCTState (e).phase == CTPhase::Gather);

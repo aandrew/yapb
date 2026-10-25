@@ -616,9 +616,9 @@ ystl::String SystemOne::BuildState (bool telemetry) {
     if (team == Team::CT) { ++ct_alive; }
     if (team == Team::Terrorist) { ++t_alive; }
   }
-  payload.appendf ("],\"round_state\":{\"phase\":\"%s\",\"phase_code\":%d,\"target_site\":\"%c\",\"deployed\":%s,\"sightings_a\":%d,\"sightings_b\":%d,\"recent_ct_deaths_a\":%d,\"recent_ct_deaths_b\":%d,\"bomb_recent\":%s,\"bomb_site\":\"%c\",\"planted_site\":\"%c\",\"previous_target\":\"%c\",\"formation\":%d,\"ct_alive\":%d,\"t_alive\":%d,\"ct_deaths\":%d,\"t_deaths\":%d,\"event_revision\":%d,\"dropped_secured\":%s,\"dropped_site\":\"%c\",\"crunch_available\":%s,\"crunch_used\":%s,\"crunch_active\":%s,\"crunch_choke\":\"%c\",\"elapsed\":%.2f},\"bomb\":{\"planted\":%s,\"known\":%s,\"site\":\"%c\",\"age\":%.2f,\"source\":\"%s\"",
+  payload.appendf ("],\"round_state\":{\"phase\":\"%s\",\"phase_code\":%d,\"target_site\":\"%c\",\"deployed\":%s,\"sightings_a\":%d,\"sightings_b\":%d,\"intruders_a\":%d,\"intruders_b\":%d,\"recent_ct_deaths_a\":%d,\"recent_ct_deaths_b\":%d,\"bomb_recent\":%s,\"bomb_site\":\"%c\",\"planted_site\":\"%c\",\"previous_target\":\"%c\",\"formation\":%d,\"ct_alive\":%d,\"t_alive\":%d,\"ct_deaths\":%d,\"t_deaths\":%d,\"event_revision\":%d,\"dropped_secured\":%s,\"dropped_site\":\"%c\",\"crunch_available\":%s,\"crunch_used\":%s,\"crunch_active\":%s,\"crunch_choke\":\"%c\",\"elapsed\":%.2f},\"bomb\":{\"planted\":%s,\"known\":%s,\"site\":\"%c\",\"age\":%.2f,\"source\":\"%s\"",
     CTPhaseName (required_.phase), static_cast<int> (required_.phase), required_.site, applied_ ? "true" : "false",
-    evidence.sightings_a, evidence.sightings_b, evidence.deaths_a, evidence.deaths_b, evidence.bomb_recent ? "true" : "false",
+    evidence.sightings_a, evidence.sightings_b, evidence.intruders_a, evidence.intruders_b, evidence.deaths_a, evidence.deaths_b, evidence.bomb_recent ? "true" : "false",
     evidence.bomb_site, evidence.planted_site, evidence.previous_target, formation_, ct_alive, t_alive, ct_deaths_, t_deaths_, event_revision_, evidence.secured_drop ? "true" : "false", evidence.dropped_site, CrunchAvailable () ? "true" : "false", crunch_used_ ? "true" : "false", crunch_active_ ? "true" : "false", crunch_choke_, game.Time () - game_state.GetRoundStartTime (),
     evidence.planted ? "true" : "false", (evidence.planted && evidence.planted_site != '-') || evidence.bomb_recent ? "true" : "false",
     evidence.planted ? evidence.planted_site : evidence.bomb_site, evidence.planted ? 0.0f : game.Time () - bomb_seen_time_,
@@ -634,9 +634,9 @@ ystl::String SystemOne::BuildState (bool telemetry) {
     drop_known_ ? "true" : "false", collector_ >= 0 ? identities_[collector_].id : "", objective_base_ >= 0 ? positions_[objective_base_].id : "",
     team_ == Team::CT ? "last_team_sighting" : "team_bomb_radar");
   if (drop_known_) { payload.appendf (",\"origin\":[%.1f,%.1f,%.1f]", objective_origin_.x, objective_origin_.y, objective_origin_.z); }
-  payload.appendf ("},\"t_plan\":{\"locked\":%s,\"target_site\":\"%c\",\"attack_delay\":%d,\"attack_at\":%.2f,\"elapsed\":%.2f,\"stage\":%d,\"fake_id\":\"%s\",\"compromised\":%s,\"retargeted\":%s,\"early_execute\":%s},\"round_events\":[",
+  payload.appendf ("},\"t_plan\":{\"locked\":%s,\"target_site\":\"%c\",\"attack_delay\":%d,\"attack_at\":%.2f,\"elapsed\":%.2f,\"stage\":%d,\"fake_id\":\"%s\",\"compromised\":%s,\"retargeted\":%s,\"early_execute\":%s,\"pistol_round\":%s,\"rush_allowed\":%s},\"round_events\":[",
     t_locked_ ? "true" : "false", t_target_, attack_delay_, attack_time_, game.Time () - game_state.GetRoundStartTime (), t_stage_,
-    FakeMember () >= 0 ? identities_[FakeMember ()].id : "", t_compromised_ ? "true" : "false", t_retargeted_ ? "true" : "false", t_early_ ? "true" : "false");
+    FakeMember () >= 0 ? identities_[FakeMember ()].id : "", t_compromised_ ? "true" : "false", t_retargeted_ ? "true" : "false", t_early_ ? "true" : "false", competitive_match.Rules ().PistolRound () ? "true" : "false", competitive_match.Rules ().OpeningRushAllowed () ? "true" : "false");
   first = true;
   const int count = ystl::min (event_count_, 32);
   for (int i = 0; i < count; ++i) {
@@ -717,7 +717,7 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
   else {
     if (site != 'A' && site != 'B') { return false; }
     if (!t_locked_) {
-      if (phase != CTPhase::TCall || !(timing == 0 || (timing >= 45 && timing <= 80))) { return false; }
+      if (phase != CTPhase::TCall || (timing == 0 && !competitive_match.Rules ().OpeningRushAllowed ()) || !(timing == 0 || (timing >= 45 && timing <= 80))) { return false; }
     }
     else if (timing != attack_delay_ || (phase != required_.phase && !(early && CanExecuteEarly ())) || (pivot && !CanRetarget ())) { return false; }
     const bool clearing = phase == CTPhase::TClear || (phase == CTPhase::TCall && timing > 0);
@@ -778,6 +778,7 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
     else if (pivot) { TeamChat (ystl::strings.format ("Caller: change of plan. Switch to %c. %s", site, phase == CTPhase::TExecute ? "Execute NOW." : "Get ready outside site, keep execute time.")); }
     else if (early || (t_early_ && phase == CTPhase::TExecute)) { TeamChat (ystl::strings.format ("Caller: player advantage. Execute %c NOW!", site)); }
     else if (phase == CTPhase::TExecute) { TeamChat (ystl::strings.format ("Caller: execute %c NOW. Everyone move in. Fake rejoins attack.", site)); }
+    else if (phase == CTPhase::Commit && (Evidence ().intruders_a >= 3 || Evidence ().intruders_b >= 3)) { TeamChat (ystl::strings.format ("Caller: three or more Ts inside %c. Everyone rotate %c NOW.", site, site)); }
     else if (phase != CTPhase::TClear) { TeamChat (ystl::strings.format ("Caller: %s, target %c.", CTPhaseName (phase), site)); }
   }
   if (opening) { next_chat_ = game.Time (); }
@@ -796,7 +797,7 @@ void SystemOne::ApplyFallback () {
   }
   if (team_ == Team::Terrorist) {
     const char site = t_locked_ ? t_target_ : (round_ % 2 == 0 ? 'A' : 'B');
-    const int timing = t_locked_ ? attack_delay_ : 0;
+    const int timing = t_locked_ ? attack_delay_ : (competitive_match.Rules ().OpeningRushAllowed () ? 0 : 60);
     if (applied_ && ordered_.phase == required_.phase && ordered_.site == required_.site &&
         (required_.phase != CTPhase::TClear || formation_ == t_stage_)) { return; }
     const bool clearing = required_.phase == CTPhase::TClear || (!t_locked_ && timing > 0);
@@ -1025,6 +1026,14 @@ CTEvidence SystemOne::Evidence () const {
     if (!contact.active || game.Time () - contact.time > 8.0f) { continue; }
     if (contact.site == 'A') { ++evidence.sightings_a; }
     if (contact.site == 'B') { ++evidence.sightings_b; }
+    char occupied = '-';
+    for (int i = 0; i < position_count_; ++i) {
+      const auto &position = positions_[i];
+      if ((position.zone == 'A' || position.zone == 'B') && ystl::abs (contact.origin.z - position.origin.z) <= 96.0f &&
+          contact.origin.distance_sq2d (position.origin) <= ystl::sqrf (450.0f)) { occupied = position.zone; break; }
+    }
+    if (occupied == 'A') { ++evidence.intruders_a; }
+    if (occupied == 'B') { ++evidence.intruders_b; }
   }
   const int count = ystl::min (event_count_, 32);
   for (int i = 0; i < count; ++i) {

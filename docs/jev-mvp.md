@@ -160,7 +160,7 @@ is randomized within that configured window; actual encounter-to-shot latency
 also includes visibility and AI scheduling. Miss rates remain distance/weapon
 and situation dependent rather than a fixed accuracy percentage.
 
-Latest checks: 21 bridge tests and native CT/economy/MR12/T-adaptation tests pass.
+Latest checks: 23 bridge tests and native CT/economy/MR12/T-adaptation tests pass.
 Save/half/full purchases were exercised live. The controlled donation test did
 not produce a verified transfer; drops need further mixed-money playtesting.
 No automated bot-kill tests should run while a human uses the local match.
@@ -190,7 +190,10 @@ Bot carriers use a cautious disposition/safe paths and wait behind teammates,
 with exceptions for planting at the site or being the last player alive.
 Rushes route the stack through the same bounded approach gate. A credited T
 kill on a CT starts execution immediately once C4 is available, without waiting
-for the original clock or another model call. Opening prompts favor more rushes.
+for the original clock or another model call. Pistol openings favor rushes. Gun rounds default to delayed/reactive attacks;
+an opening rush is only offered as an occasional mix-up (one eligible round in
+four), with native validation preventing repeated rush choices. Picks still
+trigger immediate execution regardless of the initial clock.
 
 Standard defense remains the default. Crunch opportunities have a cooldown
 (two rounds when CTs are behind, four when tied/ahead), and Jev can decline
@@ -202,3 +205,8 @@ assignments are saved and restored once survivors reach the area and it goes
 quiet. A quiet stalled push times out; ongoing contact prevents an idle return.
 Plant and confirmed bomb objectives take priority. New graph-backed boundaries
 still need human playtesting.
+
+Three distinct recent enemy sightings within a bombsite's standing-area footprint
+(and the same height band) trigger an immediate full CT rotation, even without
+a bomb-carrier sighting. Three players on Long/Short/tunnels alone do not count
+as occupying the site. Known planted/dropped bomb objectives retain priority.

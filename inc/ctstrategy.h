@@ -19,7 +19,7 @@ struct CTBombKnowledge {
 struct CTEvidence {
   bool deployed {}, planted {}, bomb_recent {};
   char planted_site { '-' }, bomb_site { '-' }, previous_target { '-' };
-  int sightings_a {}, sightings_b {}, deaths_a {}, deaths_b {};
+  int sightings_a {}, sightings_b {}, deaths_a {}, deaths_b {}, intruders_a {}, intruders_b {};
   bool secured_drop {};
   char dropped_site { 'M' };
   bool crunch_active {};
@@ -57,6 +57,7 @@ inline CTDecision EvaluateCTState (const CTEvidence &e) {
   if (e.bomb_recent && ((e.bomb_site == 'A' && a) || (e.bomb_site == 'B' && b))) {
     return { CTPhase::Commit, e.bomb_site };
   }
+  if (e.intruders_a >= 3 || e.intruders_b >= 3) { return { CTPhase::Commit, e.intruders_b > e.intruders_a ? 'B' : 'A' }; }
   if (e.crunch_active) { return { CTPhase::Crunch, e.crunch_choke }; }
   if (a || b) {
     char site = a ? 'A' : 'B';

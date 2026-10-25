@@ -7,6 +7,7 @@ export function assessCT(state) {
   const a=e.sightings_a>=2||(e.sightings_a>=1&&e.recent_ct_deaths_a>=1);
   const b=e.sightings_b>=2||(e.sightings_b>=1&&e.recent_ct_deaths_b>=1);
   if(e.bomb_recent&&((e.bomb_site==='A'&&a)||(e.bomb_site==='B'&&b)))return {phase:3,site:e.bomb_site};
+  if((e.intruders_a??0)>=3||(e.intruders_b??0)>=3)return {phase:3,site:(e.intruders_b??0)>(e.intruders_a??0)?'B':'A'};
   if(e.crunch_active)return {phase:12,site:e.crunch_choke};
   if(a||b){
     let site=a?'A':'B';

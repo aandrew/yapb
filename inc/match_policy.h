@@ -22,6 +22,8 @@ struct MatchRules {
     }
     return MatchAction::None;
   }
+  bool PistolRound () const { return !overtime && !finished && (a + b == 0 || a + b == 12); }
+  bool OpeningRushAllowed () const { return !finished && (PistolRound () || (a + b + 1) % 4 == 0); }
   bool MustBuy () const {
     if (finished) { return false; }
     return overtime ? overtime_rounds % 3 == 2 || a - overtime_base == 3 || b - overtime_base == 3 :

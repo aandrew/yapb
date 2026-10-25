@@ -31,3 +31,15 @@ test('all four choke points offer bounded 3/4-player crunches while remaining pl
  s.round_state.crunch_available=false;assert.ok(!Object.keys(plansFor(s)).some(k=>k.startsWith('crunch_')));
  s.round_state.crunch_available=true;s.round_state.crunch_used=true;assert.ok(!Object.keys(plansFor(s)).some(k=>k.startsWith('crunch_')));
 });
+
+test('three Ts inside a site force a full rotation before bomb confirmation',()=>{
+ const s=fixture();Object.assign(s.round_state,{deployed:true,phase_code:3,intruders_b:3,sightings_b:3,crunch_active:true,crunch_choke:'L'});
+ for(const p of Object.values(plansFor(s))){assert.equal(p.phase,3);assert.equal(p.target_site,'B');assert.ok(Object.values(p.assignments).every(id=>s.positions.find(x=>x.id===id).zone==='B'));}
+ s.round_state.intruders_b=2;s.round_state.crunch_active=false;for(const p of Object.values(plansFor(s)))assert.equal(p.phase,2);
+});
+test('ordinary gun rounds cannot choose an opening rush, while pistols can',()=>{
+ const s=fixture('T');s.t_plan.rush_allowed=false;s.t_plan.pistol_round=false;
+ const p=plansFor(s);assert.equal(Object.keys(p).length,2);assert.ok(Object.values(p).every(p=>p.timing>=45));
+ s.t_plan.rush_allowed=true;s.t_plan.pistol_round=true;const rush=plansFor(s).rush_A;assert.ok(rush);
+ s.t_plan.rush_allowed=false;assert.throws(()=>validatePlan(s,rush));
+});

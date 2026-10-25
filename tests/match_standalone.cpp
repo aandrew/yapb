@@ -4,6 +4,11 @@
 #include <cstdio>
 using namespace bot;
 int main () {
+ MatchRules opening; assert(opening.PistolRound()&&opening.OpeningRushAllowed());
+ opening.a=1;assert(!opening.PistolRound()&&!opening.OpeningRushAllowed());
+ opening.a=3;assert(!opening.PistolRound()&&opening.OpeningRushAllowed());
+ opening.a=6;opening.b=6;assert(opening.PistolRound()&&opening.OpeningRushAllowed());
+ opening.overtime=true;assert(!opening.PistolRound()&&!opening.OpeningRushAllowed());
  MatchRules m;
  for(int i=0;i<11;++i) { m.Win (i%2==0); }
  assert (m.MustBuy ());assert (m.Win (false)==MatchAction::Halftime);assert (m.swapped&&m.a==6&&m.b==6);
