@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "strategies": [
+    {
+      "id": "pistol_rush_a",
+      "name": "Pistol group attack A",
+      "rounds": "pistol",
+      "when": "Prefer on pistol rounds when a fast grouped A attack is appropriate. Keep bomb with supports and the main group.",
+      "plan_prefixes": [
+        "rush_A"
+      ]
+    },
+    {
+      "id": "pistol_rush_b",
+      "name": "Pistol group attack B",
+      "rounds": "pistol",
+      "when": "Prefer on pistol rounds when a fast grouped B attack is appropriate. Keep bomb behind teammates.",
+      "plan_prefixes": [
+        "rush_B"
+      ]
+    },
+    {
+      "id": "prepare_a",
+      "name": "Prepare and execute A",
+      "rounds": "any",
+      "when": "Default outside pistols when there is time to gather information. Choose A when team observations suggest fewer defenders there; unknown does not mean clear.",
+      "plan_prefixes": [
+        "clear_then_A"
+      ]
+    },
+    {
+      "id": "prepare_b",
+      "name": "Prepare and execute B",
+      "rounds": "any",
+      "when": "Default outside pistols when B appears weaker from observed contacts and confirmed defender losses. Stage together before executing.",
+      "plan_prefixes": [
+        "clear_then_B"
+      ]
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 export const phases=['round_start','gather_info','cautious_rotate','committed_rotate','retake','locate_bomb',
-  't_call','t_clear','t_execute','t_postplant','t_recover_bomb','guard_bomb','crunch'];
+  't_call','t_clear','t_execute','t_postplant','t_recover_bomb','guard_bomb','crunch','t_reassess_after_recovery'];
 export function assessCT(state) {
   const e=state.round_state;
   if(state.bomb_planted)return {phase:e.planted_site==='A'||e.planted_site==='B'?4:5,site:e.planted_site};
@@ -51,6 +51,7 @@ export function bestAssignment(state,targets,preferRoles=true,fixed={}) {
     if(i===5){if(score>bestScore){bestScore=score;best={...assignments};}return;}
     const b=bots[i];
     for(const p of targets){if(used.has(p.waypoint))continue;
+      if(state.team==='T'&&b.carrying_c4&&p.id.endsWith('_lurker'))continue;
       if((fixed[b.id]&&fixed[b.id]!==p.id)||Object.entries(fixed).some(([id,target])=>id!==b.id&&target===p.id))continue;
       const fit=p.preferred_roles.split(',').includes(b.role)?(preferRoles?12:2):0;
       const distance=b.alive?Math.hypot(...b.origin.map((v,k)=>v-p.origin[k]))/1500:0;
@@ -76,8 +77,17 @@ export function ctPlans(state) {
    validateTacticalPlacement(state,plan);return {hold_crunch:plan};
   }
   const add=(key,targets,formation=0,preferRoles=true)=>{
+    const fixed={},living=state.bots.filter(b=>b.alive);
+    if([1,2].includes(formation)&&living.length<5&&living.length>0){
+      if(living.length===1)fixed[living[0].id]=targets.find(p=>p.site==='M').id;
+      else {
+        const b=targets.find(p=>p.site==='B'),a=targets.find(p=>p.site==='A');
+        const nearest=(list,p)=>[...list].sort((x,y)=>Math.hypot(...x.origin.map((v,i)=>v-p.origin[i]))-Math.hypot(...y.origin.map((v,i)=>v-p.origin[i])))[0];
+        const defender=nearest(living,b);fixed[defender.id]=b.id;fixed[nearest(living.filter(x=>x.id!==defender.id),a).id]=a.id;
+      }
+    }
     const plan={phase,phase_name:phases[phase],target_site:site,formation,timing:0,
-      assignments:bestAssignment(state,targets,preferRoles)};
+      assignments:bestAssignment(state,targets,preferRoles,fixed)};
     validateTacticalPlacement(state,plan);plans[key]=plan;
   };
   const hold={phase,phase_name:phases[phase],target_site:site,formation:0,timing:0,

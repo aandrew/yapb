@@ -11,6 +11,12 @@ int main () {
   assert(!CrunchMixupAllowed(2,1,0,-100));
   assert(CrunchMixupAllowed(4,2,1,-100));
   assert(!CrunchMixupAllowed(5,3,1,4));
+  for(int mask=0;mask<32;++mask){
+    bool alive[5] {};char zones[5] {};int count=0;for(int i=0;i<5;++i){alive[i]=(mask&(1<<i))!=0;if(alive[i])++count;}
+    RemainingCTCoverage(alive,zones);assert(ValidateCTPlacement(CTPhase::Opening,'-',1,zones,false));
+    bool a=false,b=false,mid=false;for(int i=0;i<5;++i)if(alive[i]){a|=zones[i]=='S'||zones[i]=='L';b|=zones[i]=='B';mid|=zones[i]=='M';}
+    if(count>=2)assert(a&&b);if(count==1)assert(mid);
+  }
   CTBombKnowledge shared {};
   assert (shared.Site () == '-');
   shared.cleared_a = true; assert (shared.Site () == 'B');

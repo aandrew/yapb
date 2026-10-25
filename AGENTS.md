@@ -12,8 +12,8 @@ See docs/jev-mvp.md for setup, protocol, acceptance, and current limits.
   or B/Mid/A/Long/Long. Clear attacks allow cautious reinforcement; confirmed
   bomb attacks commit all identities, and planted bombs trigger a full retake.
 - Phase transitions must be supported by recent CT observations and public
-  kill/death information. Never read hidden live T positions or bomb-carrier
-  locations. Validate each placement against its phase and target site.
+  kill/death information. Keep hidden live enemy positions and bomb-carrier locations in the silent
+  orchestrator only. Callers receive team reports and derived public/observed status. Validate each placement against its phase and target site.
 - Author roster/roles in bridge/config/roster.json and exact named targets in
   bridge/config/de_dust2.positions.json. Runtime files are generated from these.
 - Fine callout boundaries in bridge/config/de_dust2.areas.json are drafts, not
@@ -52,8 +52,8 @@ See docs/jev-mvp.md for setup, protocol, acceptance, and current limits.
 - Keep ten-second polling bounded to one immutable snapshot and one in-flight
   request per team. Failed updates retain prior orders; round/roster changes invalidate
   old replies. Repeated polls must not repeat round-start announcements.
-- Keep API requests outside the engine thread. Never send entity pointers or
-  hidden enemy state. Validate round/request/nonce, roster membership, and expiry.
+- Keep API requests outside the engine thread. Never send entity pointers. Omniscient world packets stay in the local
+  orchestrator; never inject hidden enemy state into caller model requests. Validate round/request/nonce, roster membership, and expiry.
 - bridge/.env and all runtime/log files are private. Never commit credentials or
   print environment values. Game RCON logs can contain a local control password.
 - Run `node --test bridge/test.mjs` for bridge changes. Build native changes with

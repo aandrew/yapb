@@ -2,10 +2,19 @@
 #pragma once
 
 namespace bot {
-enum class CTPhase { Opening = 0, Gather, Cautious, Commit, Retake, LocateBomb, TCall, TClear, TExecute, TPostPlant, TRecoverBomb, GuardBomb, Crunch };
+enum class CTPhase { Opening = 0, Gather, Cautious, Commit, Retake, LocateBomb, TCall, TClear, TExecute, TPostPlant, TRecoverBomb, GuardBomb, Crunch, TReassess };
 inline bool CrunchMixupAllowed (int round, int ct_score, int t_score, int last_crunch) {
   const int gap = ct_score < t_score ? 2 : 4;
   return round > 0 && round % gap == 0 && round - last_crunch >= gap;
+}
+inline void RemainingCTCoverage (const bool *alive, char *zones) {
+  int living[5] {}, count = 0;
+  for (int i = 0; i < 5; ++i) { if (alive[i]) { living[count++] = i; } }
+  const char *coverage = count == 1 ? "M" : (count == 2 ? "BL" : (count == 3 ? "BML" : (count == 4 ? "BMSL" : "BMSSL")));
+  char remaining[5] { 'B','M','S','S','L' }; bool assigned[5] {};
+  for (int n = 0; n < count; ++n) { zones[living[n]] = coverage[n]; assigned[living[n]] = true; for (auto &zone : remaining) { if (zone == coverage[n]) { zone = '-'; break; } } }
+  int cursor = 0;
+  for (int i = 0; i < 5; ++i) { if (!assigned[i]) { while (cursor < 5 && remaining[cursor] == '-') { ++cursor; } if (cursor < 5) { zones[i] = remaining[cursor++]; } } }
 }
 struct CTBombKnowledge {
   char confirmed_site { '-' };
@@ -44,6 +53,7 @@ inline const char *CTPhaseName (CTPhase phase) {
   case CTPhase::TRecoverBomb: return "t_recover_bomb";
   case CTPhase::GuardBomb: return "guard_bomb";
   case CTPhase::Crunch: return "crunch";
+  case CTPhase::TReassess: return "t_reassess_after_recovery";
   }
   return "invalid";
 }

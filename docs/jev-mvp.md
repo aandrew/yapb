@@ -218,3 +218,14 @@ means Ts strictly outnumber CTs. Equal numbers such as 4v4 are called a site
 pick instead. Kill-site attribution uses the shooter's visible victim location
 or a team sighting no older than one second, within the actual site footprint
 and height band. Only the attributed site label is exported for enemy deaths.
+
+
+### Silent orchestrator and map strategy books
+
+The bridge now maintains a private omniscient world ledger, with quiet per-team kill/death reports delivered independently of Jev polling. Team callers receive report-derived status, living player counts, observed site estimates and objective priorities, while hidden enemy coordinates stay in the world ledger. Read-only local diagnostics run on port 28778: `/health`, `/world`, `/callers/T`, `/callers/CT`.
+
+T players prioritize recovering dropped C4 together, then reassess A/B using observed defenders and confirmed losses. CTs protect an observed dropped bomb and return to survivor-balanced site coverage after pickup. Carriers are pinned to support routes and follow the largest teammate group rather than isolated lurkers.
+
+Map-specific opening strategy books live under `strategy/<map>/T/config.json` and `strategy/<map>/CT/config.json`; see `strategy/README.md` for the schema and limits. Files reload each decision and give Jev circumstances and eligible validated choices, including pistol strategies. They do not add unsupported native actions.
+
+Bridge verification: 33 tests across test.mjs, t-approach.test.mjs, objectives.test.mjs and orchestrator.test.mjs. Native standalone CT/economy/MR12/T strategy checks and the local DLL build pass. Physical movement and strategy quality still need human playtesting.

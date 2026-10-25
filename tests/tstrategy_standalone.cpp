@@ -5,6 +5,10 @@
 #include <cstring>
 using namespace bot;
 int main () {
+ bool eligible[5] {false,true,true,true,true};float d[25] {},r[5] {0,1000000,900000,1100000,0};
+ const float x[5] {0,0,100,200,4000};for(int i=0;i<5;++i)for(int j=0;j<5;++j)d[i*5+j]=(x[i]-x[j])*(x[i]-x[j]);
+ assert(MainGroupAnchor(eligible,d,r,5)!=4);
+ for(auto &alive:eligible)alive=false;assert(MainGroupAnchor(eligible,d,r,5)==-1);
  assert(THasManAdvantage(4,5));assert(!THasManAdvantage(4,4));assert(!THasManAdvantage(5,4));
  assert(std::strcmp(TExecuteReason(4,4),"site pick")==0);
  assert(std::strcmp(TExecuteReason(4,5),"man advantage")==0);

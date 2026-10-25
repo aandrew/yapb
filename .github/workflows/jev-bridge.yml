@@ -12,7 +12,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
-      - run: node --test bridge/test.mjs bridge/t-approach.test.mjs bridge/objectives.test.mjs
+      - run: node --test bridge/test.mjs bridge/t-approach.test.mjs bridge/objectives.test.mjs bridge/orchestrator.test.mjs
       - run: g++ -std=c++20 -Iinc tests/ctstrategy_standalone.cpp -o /tmp/round-policy-tests && /tmp/round-policy-tests
       - run: g++ -std=c++20 -Iinc tests/economy_standalone.cpp -o /tmp/economy-tests && /tmp/economy-tests
       - run: g++ -std=c++20 -Iinc tests/match_standalone.cpp -o /tmp/match-tests && /tmp/match-tests

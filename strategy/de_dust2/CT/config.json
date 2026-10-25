@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "strategies": [
+    {
+      "id": "short_defense",
+      "name": "B Mid two Short one Long",
+      "rounds": "any",
+      "when": "Balanced opening including pistol rounds, with extra Short coverage. Use when Short pressure is likely from prior-round reports.",
+      "plan_prefixes": [
+        "b_mid_two_short_one_long"
+      ]
+    },
+    {
+      "id": "long_defense",
+      "name": "B Mid A two Long",
+      "rounds": "any",
+      "when": "Balanced alternative including pistol rounds. Prefer when prior-round reports suggest Long pressure and A needs site cover.",
+      "plan_prefixes": [
+        "b_mid_a_two_long"
+      ]
+    }
+  ]
+}
