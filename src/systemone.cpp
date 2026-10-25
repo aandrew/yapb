@@ -809,7 +809,7 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
   else {
     if (site != 'A' && site != 'B') { return false; }
     if (!t_locked_) {
-      if (phase != CTPhase::TCall || (timing == 0 && !competitive_match.Rules ().OpeningRushAllowed ()) || !(timing == 0 || (timing >= 45 && timing <= 80))) { return false; }
+      if (phase != CTPhase::TCall || (timing == 0 && !competitive_match.Rules ().OpeningRushAllowed ()) || !(timing == 0 || (timing >= 30 && timing <= 60))) { return false; }
     }
     else if (timing != attack_delay_ || (!replan && (phase != required_.phase && !(early && CanExecuteEarly (site)))) || (!replan && pivot && !CanRetarget ())) { return false; }
     const bool clearing = phase == CTPhase::TClear || (phase == CTPhase::TCall && timing > 0);
@@ -927,7 +927,7 @@ void SystemOne::ApplyFallback () {
   }
   if (team_ == Team::Terrorist) {
     const char site = t_locked_ ? t_target_ : (round_ % 2 == 0 ? 'A' : 'B');
-    const int timing = t_locked_ ? attack_delay_ : (competitive_match.Rules ().OpeningRushAllowed () ? 0 : 60);
+    const int timing = t_locked_ ? attack_delay_ : (competitive_match.Rules ().OpeningRushAllowed () ? 0 : 45);
     bool carrier_safe = true;
     for (int i = 0; i < 5; ++i) { if (IsCarrier (i) && required_.phase == CTPhase::TClear && identities_[i].position != CarrierPosition (site, t_stage_)) { carrier_safe = false; } }
     if (applied_ && carrier_safe && ordered_.phase == required_.phase && ordered_.site == required_.site &&

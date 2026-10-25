@@ -39,9 +39,9 @@ test('cautious rotations leave one defender opposite and one mid',()=>{
   for(const p of Object.values(plansFor(s))){const z=Object.values(p.assignments).map(id=>s.positions.find(x=>x.id===id).zone);assert.equal(z.filter(x=>x===site).length,3);assert.equal(z.filter(x=>x==='M').length,1);}
  }
 });
-test('T caller offers A/B rush or a one-off delay within 45..80 seconds',()=>{
+test('T caller offers A/B rush or a one-off delay within 30..60 seconds',()=>{
  const s=fixture('T'),plans=plansFor(s);assert.equal(Object.keys(plans).length,4);
- for(const p of Object.values(plans)){validatePlan(s,p);assert.ok(p.timing===0||(p.timing>=45&&p.timing<=80));}
+ for(const p of Object.values(plans)){validatePlan(s,p);assert.ok(p.timing===0||(p.timing>=30&&p.timing<=60));}
  assert.equal(new Set(Object.values(plans).map(p=>p.target_site)).size,2);
 });
 test('locked T plan cannot change target or postpone the attack',()=>{
@@ -125,4 +125,15 @@ test('model gets a literal briefing and actionable calls, while raw state stays 
  for(const key of ['origin','waypoint','phase_code','nonce','roster_revision','positions'])assert.ok(!Object.hasOwn(req.state,key));
  assert.ok(!json.includes('look_at'));assert.ok(!json.includes('preferred_roles'));
  const {briefing}=requestFor(s).state;assert.ok(!briefing.includes('guaranteed current position at'));
+});
+
+test('non-rush execute timing accepts both new bounds and rejects outside them',()=>{
+ for(const [nonce,delay] of [[0,30],[30,60]]){
+  const s=fixture('T');s.nonce=nonce;s.t_plan.rush_allowed=false;
+  const plans=plansFor(s);assert.equal(Object.keys(plans).length,2);
+  for(const plan of Object.values(plans)){
+   assert.equal(plan.timing,delay);validatePlan(s,plan);
+   for(const timing of [29,61])assert.throws(()=>validatePlan(s,{...plan,timing}));
+  }
+ }
 });

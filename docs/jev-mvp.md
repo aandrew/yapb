@@ -48,7 +48,7 @@ living bot is released to normal defuse behavior. Unknown plant location retains
 coverage while gathering information instead of inventing a target.
 
 T has a caller overlay in addition to its combat role. Jev chooses A/B and either
-a rush or one offered random delay from 45 to 80 seconds **after freeze ends**.
+a rush or one offered random delay from 30 to 60 seconds **after freeze ends**.
 This time and target stay locked for the round. About half of delayed rounds optionally assign one random
 living bot without C4 to fake at the other site's Long Doors/Upper Tunnels
 approach. It holds outside that site and rejoins the main attack on execute.

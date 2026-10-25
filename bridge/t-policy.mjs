@@ -22,7 +22,7 @@ export function validateTPlan(state,plan){
     (!replan&&plan.phase!==state.round_state.phase_code&&!((pivot?adapt.opportunity:adapt.early)&&plan.phase===8))||
     (!replan&&pivot&&!adapt.pivot)))throw new Error('T call cannot be rerolled without current casualty evidence');
   if(!t.locked&&plan.timing===0&&t.rush_allowed===false)throw new Error('opening rush not available this round');
-  if(!t.locked&&(plan.phase!==6||!(plan.timing===0||(Number.isInteger(plan.timing)&&plan.timing>=45&&plan.timing<=80))))throw new Error('invalid attack timing');
+  if(!t.locked&&(plan.phase!==6||!(plan.timing===0||(Number.isInteger(plan.timing)&&plan.timing>=30&&plan.timing<=60))))throw new Error('invalid attack timing');
   const targets=state.bots.map(b=>state.positions.find(p=>p.id===plan.assignments[b.id]));
   if(targets.some(p=>!p)||new Set(targets.map(p=>p.waypoint)).size!==5)throw new Error('invalid T targets');
   const clearing=plan.phase===7||(plan.phase===6&&plan.timing>0);
@@ -65,7 +65,7 @@ export function tPlans(state){
     return plans;
   }
   if(!t.locked){
-    const delay=45+(state.nonce%36);
+    const delay=30+(state.nonce%31);
     for(const site of ['A','B']){if(t.rush_allowed!==false)add(`rush_${site}`,site,0,6);add(`clear_then_${site}_${delay}s`,site,delay,6);}
   }else{
     const phase=state.round_state.phase_code;

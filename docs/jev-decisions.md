@@ -7,7 +7,7 @@ This documents implemented behavior, not proposed strategy intent. The engine de
 | Choice | When available | Effect |
 |---|---|---|
 | `rush_A`, `rush_B` | Opening is unlocked and native rush gate permits it | Select site and immediate execute deadline. Allowed on pistol rounds and every fourth match round as a mix-up. |
-| `clear_then_A_<n>s`, `clear_then_B_<n>s` | Opening is unlocked | Select site and one generated delay from 45 to 80 seconds after freeze. Both sites receive the same delay (`45 + nonce % 36`); Jev does not choose any arbitrary time. |
+| `clear_then_A_<n>s`, `clear_then_B_<n>s` | Opening is unlocked | Select site and one generated delay from 30 to 60 seconds after freeze. Both sites receive the same delay (`30 + nonce % 31`); Jev does not choose any arbitrary time. |
 | `role_order` | Locked clearing, execution or postplant phase | Reassign positions using stronger role fit. |
 | `closest_order` | Same locked phases | Reassign positions giving distance more weight; carrier/phase constraints remain mandatory. |
 | `hold` | Existing assignments still validate in current phase | Retain the current assignments. |
