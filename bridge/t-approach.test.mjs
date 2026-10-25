@@ -22,12 +22,12 @@ test('entry remains a rusher disposition rather than a mandatory front slot',()=
  const s=fixture('T');const p=Object.values(plansFor(s)).find(p=>p.timing>0);[p.assignments.t_03,p.assignments.t_04]=[p.assignments.t_04,p.assignments.t_03];validatePlan(s,p);
 });
 
-test('recent enemy losses offer early execution without inventing a weaker site',()=>{
+test('confirmed same-site picks offer early execution without falsely claiming a man advantage',()=>{
  const s=fixture('T');s.game_time=30;s.t_plan={locked:true,target_site:'A',attack_delay:60,attack_at:68,elapsed:22,stage:2};
- Object.assign(s.round_state,{phase_code:7,ct_alive:4,t_alive:5});s.round_events=[{type:'death',time:25,victim_team:'C'}];
- const p=plansFor(s).advantage_execute_now;assert.ok(p);validatePlan(s,p);assert.equal(p.phase,8);assert.equal(p.target_site,'A');assert.equal(p.timing,60);
- s.round_state.t_alive=4;assert.ok(!plansFor(s).advantage_execute_now);
- s.round_state.t_alive=5;s.round_events[0].time=17;assert.ok(!plansFor(s).advantage_execute_now);
+ Object.assign(s.round_state,{phase_code:7,ct_alive:4,t_alive:5});s.round_events=[{type:'death',time:25,victim_team:'C',killer_team:'T',observed_site:'A'}];
+ const p=plansFor(s).site_pick_execute_now;assert.ok(p);validatePlan(s,p);assert.equal(p.phase,8);assert.equal(p.target_site,'A');assert.equal(p.timing,60);
+ s.round_state.t_alive=4;assert.ok(plansFor(s).site_pick_execute_now);
+ s.round_state.t_alive=5;s.round_events[0].time=17;assert.ok(!plansFor(s).site_pick_execute_now);
  assert.throws(()=>validatePlan(s,p));
 });
 test('two recent T deaths permit one site switch, keeping the execute clock',()=>{
@@ -38,4 +38,13 @@ test('two recent T deaths permit one site switch, keeping the execute clock',()=
  s.t_plan.retargeted=true;assert.ok(!plansFor(s).casualties_switch_site);assert.throws(()=>validatePlan(s,p));
  s.t_plan.retargeted=false;s.round_state.phase_code=8;s.t_plan.stage=2;assert.equal(plansFor(s).casualties_switch_site.phase,8);
  s.bomb_planted=true;s.round_state.phase_code=9;assert.ok(!plansFor(s).casualties_switch_site);
+});
+
+test('other-site picks offer an optional pivot but never an opening on the original site',()=>{
+ const s=fixture('T');s.game_time=30;s.t_plan={locked:true,target_site:'A',attack_delay:60,attack_at:68,elapsed:22,stage:2};
+ Object.assign(s.round_state,{phase_code:7,ct_alive:4,t_alive:4});s.round_events=[{type:'death',time:25,victim_team:'C',killer_team:'T',observed_site:'B'}];
+ let plans=plansFor(s);assert.ok(!plans.site_pick_execute_now);assert.ok(plans.role_order);
+ const pivot=plans.other_site_pick_execute;assert.ok(pivot);assert.equal(pivot.target_site,'B');assert.equal(pivot.phase,8);validatePlan(s,pivot);
+ s.round_events[0].observed_site='-';plans=plansFor(s);assert.ok(!plans.site_pick_execute_now&&!plans.other_site_pick_execute);assert.throws(()=>validatePlan(s,pivot));
+ s.round_events[0].observed_site='B';s.t_plan.retargeted=true;assert.ok(!plansFor(s).other_site_pick_execute);
 });

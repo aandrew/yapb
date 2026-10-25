@@ -2,17 +2,23 @@ import {bestAssignment,phases} from './round-policy.mjs';
 export function adaptation(state){
   const phase=state.round_state.phase_code,now=state.game_time;
   const recent=(state.round_events??[]).filter(e=>e.type==='death'&&Number.isFinite(e.time)&&now-e.time>=0&&now-e.time<=12);
-  const enemy=recent.filter(e=>e.victim_team==='C').length,own=recent.filter(e=>e.victim_team==='T').length;
-  const live=state.t_plan.elapsed>=0,ct=state.round_state.ct_alive,t=state.round_state.t_alive;
-  return {early:!state.bomb_planted&&phase===7&&live&&t>ct&&enemy>=1,
-    pivot:!state.bomb_planted&&!state.t_plan.retargeted&&[7,8].includes(phase)&&own>=2&&t>=2};
+  const picks=recent.filter(e=>e.victim_team==='C'&&e.killer_team==='T');
+  const own=recent.filter(e=>e.victim_team==='T').length;
+  const live=state.t_plan.elapsed>=0,t=state.round_state.t_alive;
+  const same=picks.some(e=>e.observed_site===state.t_plan.target_site);
+  const other=picks.some(e=>e.observed_site===(state.t_plan.target_site==='A'?'B':'A'));
+  const available=!state.bomb_planted&&!state.bomb_objective?.dropped;
+  const opportunity=available&&!state.t_plan.retargeted&&[7,8].includes(phase)&&t>=2&&other;
+  return {early:available&&phase===7&&live&&t>0&&same,opportunity,
+    casualties:available&&!state.t_plan.retargeted&&[7,8].includes(phase)&&own>=2&&t>=2,
+    pivot:opportunity||(available&&!state.t_plan.retargeted&&[7,8].includes(phase)&&own>=2&&t>=2)};
 }
 export function validateTPlan(state,plan){
   const t=state.t_plan;
   if(!t||![6,7,8,9,10].includes(plan.phase)||!['A','B'].includes(plan.target_site))throw new Error('invalid T call');
   const adapt=adaptation(state),pivot=t.locked&&plan.target_site!==t.target_site;
   if(t.locked&&(plan.timing!==t.attack_delay||
-    (plan.phase!==state.round_state.phase_code&&!(adapt.early&&plan.phase===8))||
+    (plan.phase!==state.round_state.phase_code&&!((pivot?adapt.opportunity:adapt.early)&&plan.phase===8))||
     (pivot&&!adapt.pivot)))throw new Error('T call cannot be rerolled without current casualty evidence');
   if(!t.locked&&plan.timing===0&&t.rush_allowed===false)throw new Error('opening rush not available this round');
   if(!t.locked&&(plan.phase!==6||!(plan.timing===0||(Number.isInteger(plan.timing)&&plan.timing>=45&&plan.timing<=80))))throw new Error('invalid attack timing');
@@ -60,8 +66,9 @@ export function tPlans(state){
       assignments:Object.fromEntries(state.bots.map(b=>[b.id,b.position]))};
     try{validateTPlan(state,hold);plans.hold=hold;}catch{}
     const adapt=adaptation(state);
-    if(adapt.early)add('advantage_execute_now',t.target_site,t.attack_delay,8);
-    if(adapt.pivot&&(phase===8||t.attack_at-state.game_time>=8))add('casualties_switch_site',t.target_site==='A'?'B':'A',t.attack_delay,phase);
+    if(adapt.early)add('site_pick_execute_now',t.target_site,t.attack_delay,8);
+    if(adapt.opportunity)add('other_site_pick_execute',t.target_site==='A'?'B':'A',t.attack_delay,8);
+    if(adapt.casualties&&(phase===8||t.attack_at-state.game_time>=8))add('casualties_switch_site',t.target_site==='A'?'B':'A',t.attack_delay,phase);
   }
   return plans;
 }

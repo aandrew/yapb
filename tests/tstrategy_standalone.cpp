@@ -2,8 +2,14 @@
 #include "tstrategy.h"
 #include <cassert>
 #include <cstdio>
+#include <cstring>
 using namespace bot;
 int main () {
+ assert(THasManAdvantage(4,5));assert(!THasManAdvantage(4,4));assert(!THasManAdvantage(5,4));
+ assert(std::strcmp(TExecuteReason(4,4),"site pick")==0);
+ assert(std::strcmp(TExecuteReason(4,5),"man advantage")==0);
+ assert(TCanExecuteSitePick(4,true,7,true));assert(!TCanExecuteSitePick(4,false,7,true));
+ assert(!TCanExecuteSitePick(0,true,7,true));
  assert(TCanExecuteEarly(4,5,1,7,true));
  assert(!TCanExecuteEarly(4,4,1,7,true));
  assert(!TCanExecuteEarly(4,5,0,7,true));

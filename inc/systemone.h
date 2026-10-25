@@ -73,7 +73,7 @@ class SystemOne {
   };
   struct RoundEvent {
     int id {}, killer {}, victim {};
-    char killer_team { '-' }, victim_team { '-' };
+    char killer_team { '-' }, victim_team { '-' }, observed_site { '-' };
     float time {};
     ystl::Vector origin {};
     bool known_origin {};
@@ -106,12 +106,14 @@ class SystemOne {
   ystl::Vector objective_origin_ {};
   edict_t *objective_box_ {};
   int objective_serial_ {}, objective_base_ { -1 }, collector_ { -1 };
-  float next_objective_scan_ {}, next_c4_handoff_ {}, t_pick_time_ { -100.0f };
+  float next_objective_scan_ {}, next_c4_handoff_ {};
   bool rush_passed_[5] {};
   void UpdateBombObjective ();
   bool BuildObjectivePositions (const ystl::Vector &origin);
   int RushGate () const;
-  bool CanExecuteEarly () const;
+  char ObservedBombsite (const ystl::Vector &origin) const;
+  bool HasSitePick (char site) const;
+  bool CanExecuteEarly (char site) const;
   bool CanRetarget () const;
   int fake_member_ { -1 }, last_caller_ { -2 };
   int FakeMember () const;

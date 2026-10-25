@@ -160,7 +160,7 @@ is randomized within that configured window; actual encounter-to-shot latency
 also includes visibility and AI scheduling. Miss rates remain distance/weapon
 and situation dependent rather than a fixed accuracy percentage.
 
-Latest checks: 23 bridge tests and native CT/economy/MR12/T-adaptation tests pass.
+Latest checks: 24 bridge tests and native CT/economy/MR12/T-adaptation tests pass.
 Save/half/full purchases were exercised live. The controlled donation test did
 not produce a verified transfer; drops need further mixed-money playtesting.
 No automated bot-kill tests should run while a human uses the local match.
@@ -189,8 +189,10 @@ available a surviving teammate remains a fallback. Human inputs are untouched.
 Bot carriers use a cautious disposition/safe paths and wait behind teammates,
 with exceptions for planting at the site or being the last player alive.
 Rushes route the stack through the same bounded approach gate. A credited T
-kill on a CT starts execution immediately once C4 is available, without waiting
-for the original clock or another model call. Pistol openings favor rushes. Gun rounds default to delayed/reactive attacks;
+kill whose observed location is inside the chosen bombsite starts execution
+immediately once C4 is available, without waiting for the original clock or
+another model call. A confirmed other-site pick offers an optional Jev pivot
+and execute there; unknown-location kills do not imply either site is weak. Pistol openings favor rushes. Gun rounds default to delayed/reactive attacks;
 an opening rush is only offered as an occasional mix-up (one eligible round in
 four), with native validation preventing repeated rush choices. Picks still
 trigger immediate execution regardless of the initial clock.
@@ -210,3 +212,9 @@ Three distinct recent enemy sightings within a bombsite's standing-area footprin
 (and the same height band) trigger an immediate full CT rotation, even without
 a bomb-carrier sighting. Three players on Long/Short/tunnels alone do not count
 as occupying the site. Known planted/dropped bomb objectives retain priority.
+
+Caller numbers include living humans and bots on both sides. A man advantage
+means Ts strictly outnumber CTs. Equal numbers such as 4v4 are called a site
+pick instead. Kill-site attribution uses the shooter's visible victim location
+or a team sighting no older than one second, within the actual site footprint
+and height band. Only the attributed site label is exported for enemy deaths.

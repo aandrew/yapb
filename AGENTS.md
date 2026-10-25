@@ -36,7 +36,9 @@ See docs/jev-mvp.md for setup, protocol, acceptance, and current limits.
   bomb before T site plans, and let CTs guard a bomb they actually observed.
 - CT caller may crunch Long/Short/Mid/B tunnels with 3-4 players early. Bound
   target nodes to the choke, save original assignments, and return when quiet.
-  A T kill on a CT can trigger immediate execution without waiting for Jev.
+  A confirmed pick on the selected site can trigger immediate execution.
+  Other-site picks may offer an optional pivot; unknown kills imply no site
+  opening. Only call man advantage when living T count exceeds CT count.
 - Assigned spots are bounded active holds: short safe peeks and returns, not
   frozen actors. Check body clearance, teammates and floor/drop height. Preserve
   normal combat, bomb work and immediate new orders.
