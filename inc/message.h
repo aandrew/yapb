@@ -37,7 +37,8 @@ enum class NetMsg : int32_t {
   ScoreAttrib = 24,
   SayText = 25,
   ResetHUD = 26,
-  ScreenShake = 27
+  ScreenShake = 27,
+  TeamScore = 28
 };
 YSTL_ENABLE_ENUM_HASH (NetMsg);
 
@@ -124,6 +125,7 @@ private:
   ystl::FixedArray<StringKeyPair<Team>, 4> team_info_cache_ {};
 
 private:
+  edict_t *recipient_ {};
   Bot *bot_ {}; // owner of a message
   NetMsg current_ {}; // ongoing message id
 
@@ -142,6 +144,7 @@ private:
   void NetMsgAmmoPickup ();
   void NetMsgDamage ();
   void NetMsgMoney ();
+  void NetMsgTeamScore ();
   void NetMsgStatusIcon ();
   void NetMsgDeathMsg ();
   void NetMsgScreenFade ();
@@ -196,6 +199,7 @@ private:
   void Reset () {
     StopCollection ();
     bot_ = nullptr;
+    recipient_ = nullptr;
   }
 };
 

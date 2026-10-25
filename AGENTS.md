@@ -20,7 +20,9 @@ See docs/jev-mvp.md for setup, protocol, acceptance, and current limits.
   approved standing positions. Keep unknown locations unmapped. Respect height
   ranges for overlapping floors and the source graph hash when using node IDs.
 - Caller is an overlay on a combat role. Lock each T site and rush/45–80 second
-  attack delay once per round, measured after freeze. Run with guns to ready
+  attack delay once per round, measured after freeze. A fresh kill and player
+  advantage may offer an early execute at the next Jev poll. Two recent T
+  deaths may offer one site switch; never postpone the original clock. Run with guns to ready
   points, sneak only near quiet chokepoints, and run once exposed. At most one
   non-C4 bot may fake outside the other site before rejoining on execute.
   Keep caller succession and its chat announcement when a caller dies.
@@ -28,6 +30,16 @@ See docs/jev-mvp.md for setup, protocol, acceptance, and current limits.
   Clear in stages until the
   deadline, then execute. Entry is an aggressive disposition, not a mandatory
   lead position; never hold supports back to enforce entry-first movement.
+- Assigned spots are bounded active holds: short safe peeks and returns, not
+  frozen actors. Check body clearance, teammates and floor/drop height. Preserve
+  normal combat, bomb work and immediate new orders.
+- Do not run destructive round-advancement or bot-kill tests on the live server
+  while a human is playing.
+- Coordinate silent buys after opening placement. Save below $3,500 average,
+  half buy up to $4,499, full buy at $4,500+. Preserve existing primaries and
+  personal affordability. MR12 last-half/match-point rounds override saves;
+  use public TeamScore, never director round counters. Only donate after own
+  buy with more than $4,500 left, a legal replacement and a nearby poor teammate.
 - Keep ten-second polling bounded to one immutable snapshot and one in-flight
   request per team. Failed updates retain prior orders; round/roster changes invalidate
   old replies. Repeated polls must not repeat round-start announcements.

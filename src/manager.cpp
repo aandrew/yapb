@@ -258,6 +258,7 @@ Bot *Manager::FindAliveBot () {
 }
 
 void Manager::Frame () {
+  competitive_match.Frame ();
   system_one.Frame ();
   t_system_one.Frame ();
   // this function calls showframe function for all available at call moment bots
@@ -1040,6 +1041,7 @@ bool Manager::HasCustomCsdmSpawnEntities () {
 }
 
 void Manager::SetLastWinner (Team winner) {
+  competitive_match.Win (winner);
   last_winner_ = winner;
   game_state.SetRoundOver (true);
 
@@ -2460,6 +2462,7 @@ void Manager::SelectLeaders (Team team, bool reset) {
 }
 
 void Manager::InitRound () {
+  competitive_match.NewRound ();
   system_one.NewRound ();
   t_system_one.NewRound ();
   // this is called at the start of each round

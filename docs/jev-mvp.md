@@ -73,8 +73,8 @@ all-human team receives server team-chat advice.
 
 - `bridge/config/roster.json`: five profiles per side, combat role, personality,
   difficulty and one preferred caller. AWPer/lurker are cautious; entry is a
-  rusher; supports are normal. Weapon buying still uses YaPB's economy logic;
-  this release does not guarantee an AWP purchase.
+  rusher; supports are normal. Silent caller buying now uses the team-average economy policy below;
+  AWP selection requires an affordable long-lane assignment.
 - `bridge/config/de_dust2.positions.json`: 45 exact graph-backed standing targets,
   sight directions, radius, role preferences, zone and clearing stage.
 - `bridge/config/de_dust2.areas.json`: 57 draft callout areas and waypoint groups.
@@ -107,3 +107,60 @@ assertions do not substitute for human movement/chat playtesting.
 T chat uses short messages with explicit A/B and readable ready points. Internal
 X/Y route codes are not displayed. Avoid semicolons in bot chat: the engine bot
 command parser splits commands at semicolons, including inside quoted messages.
+
+## Silent coordinated buying
+
+Both teams wait for the caller's opening placement, then lock one native buy
+plan before spending. This uses the current team-average cash: below $3,500
+saves (including the $2,500 case), $3,500–$4,499 is a half buy, and $4,500+ is a
+full buy. Save rounds spend at most $200 on ammunition; half buys cap each bot
+at $2,500 for SMGs/pistols and equipment. Existing primary weapons are kept.
+Full buys prefer AK/M4, with cheaper Galil/FAMAS/SMG/pistol alternatives when
+an individual cannot afford the preferred gun. An AWPer on a long lane tries
+AWP, then Scout. Equipment and ammunition reserves come before weapon choice;
+actual server restrictions, prices and personal cash are checked again on buy.
+
+Score comes from the public TeamScore messages, independently of internal
+round IDs and practice restarts. Under the MR12 assumption, the upcoming 12th
+and 24th regulation rounds, or a round with either side at 12 wins, override
+saving. Unknown scores never invent a last-round override. The native match controller preserves team scores across a side switch after
+twelve rounds, resets pistol cash to $800, and ends regulation at thirteen wins.
+A 12–12 tie starts MR3 overtime with $10,000 each half; 3–3 blocks repeat until
+a team wins four rounds in a block. Completed matches restart as new pistol
+matches. Console restarts reset the match to 0–0, while internal halftime and
+overtime restarts preserve the score. Physical side switching still needs
+interactive match playtesting; the rule transitions have native tests.
+
+After their own purchase, a bot with **more than $4,500 left** may donate its
+primary to a nearby teammate without one and with less than $3,500 cash, then
+rebuy the same legal, affordable weapon. Snipers donate sniper guns only to
+AWPers. Transfers are limited to one per donor/receiver during freeze, with a
+short pickup window after freeze. Bots are directed to collect their allocated
+weapon; humans collect a dropped gun themselves. All allocations are silent.
+
+Human cash is learned from the normal server Money message and is bound to
+the player's current user ID. Unknown cash is excluded from the average and
+reported as unknown, never treated as zero. Humans retain control of purchases.
+`yb jev_status` displays the locked buy mode, average and score. Private logs
+record allocations; the Jev snapshot includes the economy summary.
+
+## Active holds and base combat
+
+CT and T bots pause, make short shoulder peeks (24–48 units), and return inside
+their assigned area while waiting for team instructions. Body traces include
+other players; floor checks reject unsafe drops and slopes. New assignments
+cancel local peeks. Enemy combat, planting/defusing and pickup tasks retain
+priority. Both sides keep guns out at assigned spots. These are local bot
+behaviors and do not create extra Jev calls.
+
+`bridge/config/difficulty.cfg` overrides the Normal profile used by the named
+rosters: reaction 0.18–0.28 seconds, head aim 20%, aim error 12/12/18, and reduced
+wall-fire chances. This is base YaPB tuning, independent of Jev. Reaction delay
+is randomized within that configured window; actual encounter-to-shot latency
+also includes visibility and AI scheduling. Miss rates remain distance/weapon
+and situation dependent rather than a fixed accuracy percentage.
+
+Latest checks: 18 bridge tests and native CT/economy/MR12/T-adaptation tests pass.
+Save/half/full purchases were exercised live. The controlled donation test did
+not produce a verified transfer; drops need further mixed-money playtesting.
+No automated bot-kill tests should run while a human uses the local match.

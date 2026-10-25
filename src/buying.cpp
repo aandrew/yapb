@@ -526,6 +526,8 @@ void Bot::BuyNightVision () {
 }
 
 void Bot::BuyWeapons () {
+  if (system_one.HandleBuy (this) || t_system_one.HandleBuy (this)) { return; }
+
   // this function does all the work in selecting correct buy menus for most weapons/items
 
   if (!ignore_buy_delay_) {

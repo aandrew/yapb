@@ -352,7 +352,7 @@ void Bot::CompleteTask () {
 void Bot::TaskNormal () {
   aim_flags_ |= AimFlags::Nav;
 
-  if (t_system_one.GunReady (index_) && UsesKnife () && HasAnyAmmo ()) { SelectBestWeapon (); }
+  if ((t_system_one.GunReady (index_) || system_one.Goal (index_) != -1) && UsesKnife () && HasAnyAmmo ()) { SelectBestWeapon (); }
 
   if (system_one.HoldPosition (this) || t_system_one.HoldPosition (this)) {
     return;

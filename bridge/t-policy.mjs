@@ -1,14 +1,25 @@
 import {bestAssignment,phases} from './round-policy.mjs';
+export function adaptation(state){
+  const phase=state.round_state.phase_code,now=state.game_time;
+  const recent=(state.round_events??[]).filter(e=>e.type==='death'&&Number.isFinite(e.time)&&now-e.time>=0&&now-e.time<=12);
+  const enemy=recent.filter(e=>e.victim_team==='C').length,own=recent.filter(e=>e.victim_team==='T').length;
+  const live=state.t_plan.elapsed>=0,ct=state.round_state.ct_alive,t=state.round_state.t_alive;
+  return {early:!state.bomb_planted&&phase===7&&live&&t>ct&&enemy>=1,
+    pivot:!state.bomb_planted&&!state.t_plan.retargeted&&[7,8].includes(phase)&&own>=2&&t>=2};
+}
 export function validateTPlan(state,plan){
   const t=state.t_plan;
   if(!t||![6,7,8,9].includes(plan.phase)||!['A','B'].includes(plan.target_site))throw new Error('invalid T call');
-  if(t.locked&&(plan.target_site!==t.target_site||plan.timing!==t.attack_delay||plan.phase!==state.round_state.phase_code))throw new Error('T call cannot be rerolled mid-round');
+  const adapt=adaptation(state),pivot=t.locked&&plan.target_site!==t.target_site;
+  if(t.locked&&(plan.timing!==t.attack_delay||
+    (plan.phase!==state.round_state.phase_code&&!(adapt.early&&plan.phase===8))||
+    (pivot&&!adapt.pivot)))throw new Error('T call cannot be rerolled without current casualty evidence');
   if(!t.locked&&(plan.phase!==6||!(plan.timing===0||(Number.isInteger(plan.timing)&&plan.timing>=45&&plan.timing<=80))))throw new Error('invalid attack timing');
   const targets=state.bots.map(b=>state.positions.find(p=>p.id===plan.assignments[b.id]));
   if(targets.some(p=>!p)||new Set(targets.map(p=>p.waypoint)).size!==5)throw new Error('invalid T targets');
   const clearing=plan.phase===7||(plan.phase===6&&plan.timing>0);
   const zone=clearing?(plan.target_site==='A'?'X':'Y'):plan.target_site;
-  const stage=plan.phase===6?0:t.stage;
+  const stage=plan.phase===6?0:(pivot?2:t.stage);
   if(plan.formation!==(clearing?stage:0))throw new Error('invalid clearing stage');
   if(targets.some((p,i)=>{
     if(clearing&&state.bots[i].id===t.fake_id)return p.id!==`t_${plan.target_site==='A'?'b':'a'}_1_entry`;
@@ -19,8 +30,9 @@ export function validateTPlan(state,plan){
 export function tPlans(state){
   const t=state.t_plan,plans={};
   const add=(key,site,timing,phase,prefer=true)=>{
+    const pivot=t.locked&&site!==t.target_site;
     const clearing=phase===7||(phase===6&&timing>0),zone=clearing?(site==='A'?'X':'Y'):site;
-    const stage=phase===6?0:t.stage;
+    const stage=phase===6?0:(pivot?2:t.stage);
     const targets=state.positions.filter(p=>p.zone===zone&&(!clearing||p.stage===stage));
     const plan={phase,phase_name:phases[phase],target_site:site,formation:clearing?stage:0,timing,
       assignments:bestAssignment(state,targets,prefer)};
@@ -39,6 +51,9 @@ export function tPlans(state){
     const hold={phase,phase_name:phases[phase],target_site:t.target_site,formation:phase===7?t.stage:0,timing:t.attack_delay,
       assignments:Object.fromEntries(state.bots.map(b=>[b.id,b.position]))};
     try{validateTPlan(state,hold);plans.hold=hold;}catch{}
+    const adapt=adaptation(state);
+    if(adapt.early)add('advantage_execute_now',t.target_site,t.attack_delay,8);
+    if(adapt.pivot&&(phase===8||t.attack_at-state.game_time>=8))add('casualties_switch_site',t.target_site==='A'?'B':'A',t.attack_delay,phase);
   }
   return plans;
 }

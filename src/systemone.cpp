@@ -86,10 +86,78 @@ bool ValidRole (ystl::StringRef role) {
 }
 }
 
+void CompetitiveMatch::NewMatch () {
+  rules_.Reset (); pending_ = MatchAction::None; winner_seen_ = false; raw_ct_ = raw_t_ = 0;
+  score_dirty_ = true;
+  game.ServerCommand ("mp_startmoney 800");
+  game.ServerCommand ("mp_roundtime 1.916667");
+  game.ServerCommand ("mp_c4timer 40");
+  game.Print ("[Match] New match 0-0. MR12, pistol cash 800, round 1:55, bomb 0:40. OT MR3 / 10000.");
+}
+
+void CompetitiveMatch::NewRound () {
+  if (!cv_systemone) { return; }
+  if (rules_.finished) {
+    NewMatch (); internal_restart_ = true; game.ServerCommand ("sv_restart 1");
+  }
+  winner_seen_ = false;
+  if (internal_restart_) { ignore_zero_until_ = game.Time () + 4.0f; internal_restart_ = false; }
+  score_dirty_ = true;
+}
+
+void CompetitiveMatch::Win (Team team) {
+  if (!cv_systemone || winner_seen_ || internal_restart_ || rules_.finished) { return; }
+  winner_seen_ = true;
+  pending_ = rules_.Win ((team == Team::CT) != rules_.swapped);
+  score_dirty_ = true;
+  game.Print ("[Match] Score A=%d B=%d swapped=%d overtime=%d action=%d", rules_.a, rules_.b, rules_.swapped ? 1 : 0, rules_.overtime ? 1 : 0, static_cast<int> (pending_));
+}
+
+void CompetitiveMatch::ObserveScore (ystl::StringRef team, int score) {
+  if (!cv_systemone || publishing_) { return; }
+  const int previous = raw_ct_ + raw_t_;
+  if (team == "CT") { raw_ct_ = score; } else if (team == "TERRORIST") { raw_t_ = score; } else { return; }
+  if (previous > 0 && raw_ct_ == 0 && raw_t_ == 0 && !internal_restart_ && game.Time () > ignore_zero_until_) { NewMatch (); }
+  score_dirty_ = true;
+}
+
+void CompetitiveMatch::Frame () {
+  if (!cv_systemone) { return; }
+  if (pending_ == MatchAction::Finished) {
+    pending_ = MatchAction::None;
+    MessageWriter (MSG_ALL, msgs.Id (NetMsg::TextMsg)).WriteByte (4).WriteString ("Match finished. Next round starts a new $800 pistol match.");
+  }
+  if (pending_ != MatchAction::None && pending_ != MatchAction::Finished && !internal_restart_ && game_state.IsRoundOver ()) {
+    const auto action = pending_; pending_ = MatchAction::None; internal_restart_ = true;
+    ignore_zero_until_ = game.Time () + 8.0f;
+    if (action == MatchAction::Halftime || action == MatchAction::OvertimeHalf) {
+      edict_t *players[32] {}; int wanted[32] {}, count = 0;
+      for (int slot = 1; slot <= game.MaxClients () && count < 32; ++slot) {
+        auto *entity = game.EntityOfIndex (slot);
+        if (!game.IsPlayerEntity (entity)) { continue; }
+        const auto side = game.GetPlayerTeam (entity);
+        if (side == Team::CT || side == Team::Terrorist) { players[count] = entity; wanted[count++] = side == Team::CT ? 1 : 2; }
+      }
+      for (int i = 0; i < count; ++i) {
+        game.Command (players[i], "chooseteam"); game.Command (players[i], "menuselect %d", wanted[i]); game.Command (players[i], "menuselect 1");
+      }
+      game.Print ("[Match] Halftime switch requested for %d players.", count);
+    }
+    game.ServerCommand ("mp_startmoney %d", rules_.overtime ? 10000 : 800);
+    game.ServerCommand ("sv_restart 1");
+  }
+  if (score_dirty_ && msgs.Id (NetMsg::TeamScore) > 0) {
+    score_dirty_ = false; publishing_ = true;
+    MessageWriter (MSG_ALL, msgs.Id (NetMsg::TeamScore)).WriteString ("CT").WriteShort (rules_.SideScore (true));
+    MessageWriter (MSG_ALL, msgs.Id (NetMsg::TeamScore)).WriteString ("TERRORIST").WriteShort (rules_.SideScore (false));
+    publishing_ = false;
+  }
+}
+
 bool SystemOne::LoadConfig () {
   config_attempted_ = true;
   position_count_ = 0;
-  ystl::MemFile file (ystl::strings.join_path (bstor.GetRunningPathVfs (), "conf", team_ == Team::CT ? "systemone.cfg" : "systemone_t.cfg"));
+  ystl::MemFile file (ystl::strings.join_path (bstor.GetRunningPathVfs (), "conf", (team_ == Team::CT) != competitive_match.Rules ().swapped ? "systemone.cfg" : "systemone_t.cfg"));
   ystl::String line {};
   int identity_count = 0;
   bool correct_map = false;
@@ -182,14 +250,175 @@ bool SystemOne::LoadConfig () {
   return config_loaded_;
 }
 
+void SystemOne::ObserveMoney (edict_t *entity, int amount) {
+  if (game.IsNullEntity (entity) || !game.IsPlayerEntity (entity) || game.GetPlayerTeam (entity) != team_) { return; }
+  const int slot = game.IndexOfEntity (entity);
+  if (slot > 0 && slot <= 32) { wallet_[slot] = amount; wallet_userid_[slot] = engfuncs.pfnGetPlayerUserId (entity); }
+}
+
+void SystemOne::SetScore (ystl::StringRef team, int score) {
+  if (score < 0 || score > 1000) { return; }
+  if (team == "CT") { ct_score_ = cv_systemone ? competitive_match.Rules ().SideScore (true) : score; }
+  else if (team == "TERRORIST") { t_score_ = cv_systemone ? competitive_match.Rules ().SideScore (false) : score; }
+  else { return; }
+  score_known_ = true;
+}
+
+int SystemOne::MoneyFor (int identity) const {
+  if (auto *player = Player (identity); player != nullptr) { return player->money_amount_; }
+  const auto &binding = identities_[identity];
+  return binding.slot > 0 && binding.slot <= 32 && wallet_userid_[binding.slot] == binding.userid ? wallet_[binding.slot] : -1;
+}
+
+Weapon SystemOne::ChooseBuyWeapon (int identity, Bot *player) const {
+  if (player->HasPrimaryWeapon () || economy_mode_ == EconomyMode::Save) { return Weapon::Invalid; }
+  const int budget = EconomyWeaponBudget (economy_mode_, player->money_amount_, player->pev->armorvalue >= 65.0f, team_ == Team::CT);
+  const bool half = economy_mode_ == EconomyMode::Half;
+  const auto &binding = identities_[identity];
+  const auto role = ystl::StringRef (binding.role);
+  const bool long_lane = binding.position >= 0 && positions_[binding.position].look_at.distance_sq (positions_[binding.position].origin) >= ystl::sqrf (700.0f);
+  Weapon candidates[10] {}; int count = 0;
+  if (!half && role == "awper" && long_lane) { candidates[count++] = Weapon::AWP; candidates[count++] = Weapon::Scout; }
+  if (!half) {
+    candidates[count++] = team_ == Team::CT ? Weapon::M4A1 : Weapon::AK47;
+    candidates[count++] = team_ == Team::CT ? Weapon::Famas : Weapon::Galil;
+  }
+  if (role == "lurker") { candidates[count++] = team_ == Team::CT ? Weapon::TMP : Weapon::MAC10; }
+  candidates[count++] = Weapon::MP5;
+  candidates[count++] = team_ == Team::CT ? Weapon::TMP : Weapon::MAC10;
+  for (int i = 0; i < count; ++i) {
+    const auto *weapon = conf.GetWeapon (candidates[i]);
+    if (weapon != nullptr && weapon->price <= budget && player->IsWeaponEligibleForPurchase (weapon, team_)) { return candidates[i]; }
+  }
+  const auto *pistol = conf.GetWeapon (Weapon::Deagle);
+  if (pistol != nullptr && pistol->price + 100 <= EconomySpendCap (economy_mode_, player->money_amount_) &&
+      player->IsWeaponEligibleForPurchase (pistol, team_) && !has_flag (player->pev->weapons, ystl::bit (Weapon::Deagle))) { return Weapon::Deagle; }
+  return Weapon::Invalid;
+}
+
+void SystemOne::PrepareEconomy () {
+  if (economy_ready_ || !applied_ || game.Time () < round_time_ + 0.8f) { return; }
+  int total = 0; economy_known_ = 0;
+  for (int i = 0; i < 5; ++i) {
+    const int money = MoneyFor (i);
+    if (Entity (i) != nullptr && money >= 0) { total += money; ++economy_known_; }
+  }
+  economy_average_ = economy_known_ > 0 ? total / economy_known_ : 0;
+  economy_mode_ = competitive_match.Rules ().MustBuy () ? EconomyMode::LastRound : ChooseEconomy (economy_average_, 0, 0, false);
+  for (int i = 0; i < 5; ++i) {
+    auto *player = Player (i);
+    if (player == nullptr) { continue; }
+    buy_cash_[i] = player->money_amount_;
+    buy_cap_[i] = EconomySpendCap (economy_mode_, buy_cash_[i]);
+    buy_weapon_[i] = ChooseBuyWeapon (i, player);
+    game.Print ("[Jev] Buy team=%s caller=%d identity=%s mode=%s average=%d cash=%d cap=%d weapon=%d score=%d:%d",
+      team_ == Team::CT ? "CT" : "T", Caller (), identities_[i].id, EconomyName (economy_mode_), economy_average_, buy_cash_[i], buy_cap_[i], static_cast<int> (buy_weapon_[i]), ct_score_, t_score_);
+  }
+  economy_ready_ = true;
+}
+
+bool SystemOne::HandleBuy (Bot *player) {
+  if (!cv_systemone || player->team_ != team_) { return false; }
+  if (config_attempted_ && !config_loaded_) { return false; }
+  const int identity = IdentityFor (player->index_);
+  if (config_loaded_ && identity < 0) { return false; }
+  const auto wait = [&] () { player->next_buy_timer_.start (0.1f); player->PushMsgQueue (Msg::Buy); };
+  if (identity < 0 || !applied_) { wait (); return true; }
+  PrepareEconomy ();
+  if (!economy_ready_) { wait (); return true; }
+  const int remaining = ystl::min (player->money_amount_, ystl::max (0, buy_cap_[identity] - (buy_cash_[identity] - player->money_amount_)));
+  const bool spending = economy_mode_ != EconomyMode::Save;
+  switch (player->buy_state_) {
+  case BuyState::PrimaryWeapon: {
+    const auto *weapon = conf.GetWeapon (buy_weapon_[identity]);
+    if (!player->HasPrimaryWeapon () && weapon != nullptr && weapon->price <= remaining && player->IsWeaponEligibleForPurchase (weapon, team_)) {
+      player->IssueBuyCommand (weapon);
+    }
+    break;
+  }
+  case BuyState::ArmorVestHelm:
+    if (spending && player->pev->armorvalue < 65.0f) {
+      if (economy_mode_ != EconomyMode::Half && remaining >= 1100 && !player->IsWeaponRestricted (Weapon::ArmorHelm)) { player->IssueCommand ("buyequip;menuselect 2"); }
+      else if (remaining >= 750 && !player->IsWeaponRestricted (Weapon::Armor)) { player->IssueCommand ("buyequip;menuselect 1"); }
+    }
+    break;
+  case BuyState::Ammo:
+    if (remaining >= 200) { if (player->HasPrimaryWeapon ()) { player->IssueCommand ("buyammo1"); } player->IssueCommand ("buyammo2"); }
+    break;
+  case BuyState::DefusalKit:
+    if (spending && team_ == Team::CT && !player->has_defuser_ && remaining >= 200 && !player->IsWeaponRestricted (Weapon::Defuser)) { player->IssueCommand ("defuser"); }
+    break;
+  case BuyState::Grenades:
+    if (spending && remaining >= 300 && !player->IsWeaponRestricted (Weapon::Flashbang)) { player->IssueCommand ("flash"); }
+    break;
+  default: break;
+  }
+  ++player->buy_state_;
+  player->next_buy_timer_.start (0.1f);
+  player->PushMsgQueue (Msg::Buy);
+  return true;
+}
+
+void SystemOne::MaintainDrops () {
+  if (!economy_ready_) { return; }
+  for (int receiver = 0; receiver < 5; ++receiver) {
+    auto *player = Player (receiver);
+    auto *box = drop_box_[receiver];
+    if (box == nullptr) { continue; }
+    if (player == nullptr || player->HasPrimaryWeapon () || game.IsNullEntity (box) || box->serialnumber != drop_serial_[receiver] || game.Time () > game_state.GetRoundStartTime () + 6.0f) {
+      if (player != nullptr && player->pickup_item_ == box) { player->pickup_item_ = nullptr; }
+      if (player != nullptr && player->HasPrimaryWeapon ()) { game.Print ("[Jev] Drop received identity=%s", identities_[receiver].id); }
+      drop_box_[receiver] = nullptr; continue;
+    }
+    player->pickup_item_ = box;
+    player->pickup_type_ = Pickup::Weapon;
+    player->StartTask (TaskId::PickupItem, 60.0f, kInvalidNodeIndex, 0.0f, true);
+  }
+  if (economy_mode_ == EconomyMode::Save || game.Time () >= game_state.GetRoundStartTime ()) { return; }
+  for (int donor = 0; donor < 5; ++donor) {
+    auto *player = Player (donor);
+    if (donated_[donor] || player == nullptr || !player->buying_finished_ || !player->in_buy_zone_ || !player->HasPrimaryWeapon () || !game.IsAliveEntity (player->Ent ())) { continue; }
+    Weapon primary = Weapon::Invalid;
+    for (const auto &weapon : conf.GetWeapons ()) {
+      if (has_flag (kPrimaryWeaponMask, ystl::bit (weapon.id)) && has_flag (player->pev->weapons, ystl::bit (weapon.id))) { primary = weapon.id; break; }
+    }
+    const auto *weapon = conf.GetWeapon (primary);
+    if (weapon == nullptr || !player->IsWeaponEligibleForPurchase (weapon, team_)) { continue; }
+    for (int receiver = 0; receiver < 5; ++receiver) {
+      auto *entity = Entity (receiver);
+      if ((primary == Weapon::AWP || primary == Weapon::Scout) && ystl::StringRef (identities_[receiver].role) != "awper") { continue; }
+      if (receiver == donor || received_[receiver] || entity == nullptr || !game.IsAliveEntity (entity) ||
+          !CanFundDrop (player->money_amount_, weapon->price, has_flag (entity->v.weapons, kPrimaryWeaponMask), MoneyFor (receiver)) ||
+          entity->v.origin.distance_sq (player->pev->origin) > ystl::sqrf (400.0f)) { continue; }
+      buy_weapon_[donor] = primary;
+      buy_cap_[donor] = ystl::min (buy_cash_[donor], buy_cap_[donor] + weapon->price);
+      player->DropWeaponForUser (entity, false);
+      donated_[donor] = received_[receiver] = true;
+      game.Print ("[Jev] Drop donor=%s receiver=%s weapon=%d surplus=%d", identities_[donor].id, identities_[receiver].id, static_cast<int> (primary), player->money_amount_);
+      if (Player (receiver) != nullptr) {
+        game.SearchEntities ("classname", "weaponbox", [&] (edict_t *box) {
+          if (box->v.owner == player->Ent () && !game.IsEntityModelMatches (box, "backpack.mdl") && box->v.origin.distance_sq (player->pev->origin) < ystl::sqrf (128.0f)) {
+            drop_box_[receiver] = box; drop_serial_[receiver] = box->serialnumber; return EntitySearchResult::Break;
+          }
+          return EntitySearchResult::Continue;
+        });
+      }
+      break;
+    }
+  }
+}
+
 void SystemOne::NewRound () {
   ++round_;
+  economy_ready_ = false;
+  for (int i = 0; i < 5; ++i) { buy_weapon_[i] = Weapon::Invalid; buy_cash_[i] = buy_cap_[i] = 0; donated_[i] = received_[i] = false; drop_box_[i] = nullptr; drop_serial_[i] = 0; }
   nonce_ = ystl::rg (1, 0x3fffffff);
   pending_ = applied_ = config_loaded_ = config_attempted_ = false;
   pending_state_.clear ();
   round_time_ = game.Time ();
   next_poll_ = round_time_ + 0.5f;
   next_telemetry_ = next_chat_ = next_roster_maintain_ = 0.0f;
+  t_retargeted_ = t_early_ = false;
   t_compromised_ = fake_chosen_ = false; fake_member_ = -1; last_caller_ = -2;
   t_locked_ = false; attack_delay_ = -1; t_stage_ = 0; t_target_ = '-'; attack_time_ = stage_ready_time_ = 0.0f;
   event_count_ = ct_deaths_ = t_deaths_ = event_revision_ = 0;
@@ -202,6 +431,7 @@ void SystemOne::NewRound () {
   for (auto &event : events_) { event = {}; }
   for (auto &identity : identities_) {
     identity.position = -1;
+    identity.hold_position = -1;
     identity.announced = false;
   }
 }
@@ -355,12 +585,13 @@ ystl::String SystemOne::BuildState (bool telemetry) {
     payload.appendf ("%s{\"id\":\"%s\",\"role\":\"%s\",\"slot\":%d,\"userid\":%d,\"generation\":%d,\"human\":%s,\"caller\":%s,\"connected\":%s,\"alive\":%s,\"health\":%.0f,\"money\":%d,\"weapon\":%d,\"origin\":[%.1f,%.1f,%.1f],\"position\":\"%s\",\"site\":\"%c\",\"goal\":%d,\"rotating\":%s}",
       i == 0 ? "" : ",", identity.id, identity.role, identity.slot, identity.userid, identity.generation,
       identity.human ? "true" : "false", Caller () == i ? "true" : "false", entity != nullptr ? "true" : "false", alive ? "true" : "false", entity != nullptr ? entity->v.health : 0.0f,
-      player != nullptr ? player->money_amount_ : 0, player != nullptr ? static_cast<int> (player->current_weapon_) : 0,
+      MoneyFor (i), player != nullptr ? static_cast<int> (player->current_weapon_) : 0,
       origin.x, origin.y, origin.z, assigned ? positions_[identity.position].id : "pending",
       assigned ? positions_[identity.position].site : '-', assigned ? positions_[identity.position].waypoint : -1,
       alive && assigned && origin.distance_sq (graph[positions_[identity.position].waypoint].origin) > ystl::sqrf (96.0f) ? "true" : "false");
   }
-  payload.append ("],\"observed_contacts\":[");
+  payload.appendf ("],\"economy\":{\"ready\":%s,\"mode\":\"%s\",\"average\":%d,\"known_members\":%d,\"ct_score\":%d,\"t_score\":%d,\"score_known\":%s,\"match_format\":\"MR12\",\"must_buy\":%s},\"observed_contacts\":[",
+    economy_ready_ ? "true" : "false", EconomyName (economy_mode_), economy_average_, economy_known_, ct_score_, t_score_, score_known_ ? "true" : "false", competitive_match.Rules ().MustBuy () ? "true" : "false");
   bool first = true;
   for (const auto &contact : sightings_) {
     if (!contact.active || game.Time () - contact.time > 8.0f) { continue; }
@@ -392,9 +623,9 @@ ystl::String SystemOne::BuildState (bool telemetry) {
   else if (evidence.bomb_recent) {
     payload.appendf (",\"origin\":[%.1f,%.1f,%.1f]", bomb_seen_origin_.x, bomb_seen_origin_.y, bomb_seen_origin_.z);
   }
-  payload.appendf ("},\"t_plan\":{\"locked\":%s,\"target_site\":\"%c\",\"attack_delay\":%d,\"attack_at\":%.2f,\"elapsed\":%.2f,\"stage\":%d,\"fake_id\":\"%s\",\"compromised\":%s},\"round_events\":[",
+  payload.appendf ("},\"t_plan\":{\"locked\":%s,\"target_site\":\"%c\",\"attack_delay\":%d,\"attack_at\":%.2f,\"elapsed\":%.2f,\"stage\":%d,\"fake_id\":\"%s\",\"compromised\":%s,\"retargeted\":%s,\"early_execute\":%s},\"round_events\":[",
     t_locked_ ? "true" : "false", t_target_, attack_delay_, attack_time_, game.Time () - game_state.GetRoundStartTime (), t_stage_,
-    FakeMember () >= 0 ? identities_[FakeMember ()].id : "", t_compromised_ ? "true" : "false");
+    FakeMember () >= 0 ? identities_[FakeMember ()].id : "", t_compromised_ ? "true" : "false", t_retargeted_ ? "true" : "false", t_early_ ? "true" : "false");
   first = true;
   const int count = ystl::min (event_count_, 32);
   for (int i = 0; i < count; ++i) {
@@ -435,6 +666,8 @@ void SystemOne::BeginRequest () {
 }
 
 bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, char site, int formation, int timing) {
+  const bool pivot = team_ == Team::Terrorist && t_locked_ && site != t_target_;
+  const bool early = team_ == Team::Terrorist && t_locked_ && required_.phase == CTPhase::TClear && phase == CTPhase::TExecute;
   char zones[5] {};
   bool holding = applied_;
   for (int i = 0; i < 5; ++i) {
@@ -453,10 +686,10 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
     if (!t_locked_) {
       if (phase != CTPhase::TCall || !(timing == 0 || (timing >= 45 && timing <= 80))) { return false; }
     }
-    else if (phase != required_.phase || site != t_target_ || timing != attack_delay_) { return false; }
+    else if (timing != attack_delay_ || (phase != required_.phase && !(early && CanExecuteEarly ())) || (pivot && !CanRetarget ())) { return false; }
     const bool clearing = phase == CTPhase::TClear || (phase == CTPhase::TCall && timing > 0);
     const char zone = clearing ? (site == 'A' ? 'X' : 'Y') : site;
-    const int stage = phase == CTPhase::TCall ? 0 : t_stage_;
+    const int stage = phase == CTPhase::TCall ? 0 : (pivot ? 2 : t_stage_);
     if (formation != (clearing ? stage : 0)) { return false; }
     for (int i = 0; i < 5; ++i) {
       if (clearing && i == FakeMember ()) {
@@ -473,6 +706,8 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
       game.Print ("[Jev] T call target=%c delay=%d attack_at=%.2f", site, timing, attack_time_);
     }
   }
+  if (pivot) { t_target_ = site; t_stage_ = 2; t_retargeted_ = true; required_ = { phase, site }; }
+  if (early) { attack_time_ = game.Time (); t_early_ = true; required_ = { phase, site }; }
   const bool opening = !applied_;
   pending_ = false;
   applied_ = true;
@@ -492,6 +727,7 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
   for (int i = 0; i < 5; ++i) {
     auto &identity = identities_[i];
     const bool changed = identity.position != targets[i];
+    if (changed) { identity.hold_position = -1; }
     identity.position = targets[i];
     game.Print ("[Jev] Order round=%d request=%d source=%s phase=%s target=%c formation=%d identity=%s role=%s position=%s zone=%c changed=%d nonce=%d",
       round_, request_, source, CTPhaseName (phase), site, formation, identity.id, identity.role,
@@ -503,7 +739,9 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
     }
   }
   if (phase_changed && !opening) {
-    if (phase == CTPhase::TExecute) { TeamChat (ystl::strings.format ("Caller: execute %c NOW. Everyone move in. Fake rejoins attack.", site)); }
+    if (pivot) { TeamChat (ystl::strings.format ("Caller: change of plan. Switch to %c. %s", site, phase == CTPhase::TExecute ? "Execute NOW." : "Get ready outside site, keep execute time.")); }
+    else if (early) { TeamChat (ystl::strings.format ("Caller: player advantage. Execute %c NOW!", site)); }
+    else if (phase == CTPhase::TExecute) { TeamChat (ystl::strings.format ("Caller: execute %c NOW. Everyone move in. Fake rejoins attack.", site)); }
     else if (phase != CTPhase::TClear) { TeamChat (ystl::strings.format ("Caller: %s, target %c.", CTPhaseName (phase), site)); }
   }
   if (opening) { next_chat_ = game.Time (); }
@@ -598,26 +836,75 @@ int SystemOne::Goal (int index) const {
 
 bool SystemOne::HoldPosition (Bot *bot) const {
   if (team_ == Team::Terrorist && ordered_.phase >= CTPhase::TExecute && bot->has_c4_) { return false; }
-  if (Goal (bot->index_) == -1) {
+  if (Goal (bot->index_) == -1) { return false; }
+  const auto &identity = identities_[IdentityFor (bot->index_)];
+  const auto &position = positions_[identity.position];
+  const auto &anchor = graph[position.waypoint].origin;
+  const float distance = bot->pev->origin.distance_sq (anchor);
+  if (identity.hold_position != identity.position) {
+    if (distance > ystl::sqrf (position.radius) || !util.IsVisible (anchor, bot->Ent ())) { return false; }
+    identity.hold_position = identity.position;
+    identity.hold_phase = 0;
+    identity.hold_target = anchor;
+    identity.hold_next = game.Time () + ystl::rg (0.7f, 1.8f);
+  }
+  // Keep local movement bounded to the assigned area; navigation recovers displacement.
+  if (distance > ystl::sqrf (position.radius + 64.0f) || !bot->IsOnFloor () || bot->IsOnLadder ()) {
+    identity.hold_position = -1;
     return false;
   }
-  const auto &position = positions_[identities_[IdentityFor (bot->index_)].position];
-  const auto &destination = graph[position.waypoint].origin;
-  if (bot->pev->origin.distance_sq (destination) > ystl::sqrf (position.radius) || !util.IsVisible (destination, bot->Ent ())) {
-    return false;
+  auto direction = (position.look_at - anchor).normalize2d ();
+  const ystl::Vector side (-direction.y, direction.x, 0.0f);
+  const auto clear_step = [&] (const ystl::Vector &target) {
+    Trace::Result body {}, ground {};
+    trace.Hull (bot->pev->origin, target, TraceIgnore::None, bot->IsDucking () ? head_hull : human_hull, bot->Ent (), &body);
+    if (body.start_solid || body.fraction < 1.0f) { return false; }
+    trace.Line (target + ystl::Vector (0.0f, 0.0f, 8.0f), target - ystl::Vector (0.0f, 0.0f, 64.0f), TraceIgnore::Monsters, bot->Ent (), &ground);
+    const float standing_height = bot->IsDucking () ? 18.0f : 36.0f;
+    return !ground.start_solid && ground.fraction < 1.0f && ground.plane_normal.z >= 0.7f &&
+      ystl::abs (ground.end_pos.z + standing_height - bot->pev->origin.z) <= 18.0f;
+  };
+  if (game.Time () >= game_state.GetRoundStartTime ()) {
+    if (identity.hold_phase == 0 && game.Time () >= identity.hold_next) {
+      // Brief shoulder peeks, with pauses between them, instead of an endless strafe.
+      const float width = ystl::rg (24.0f, 48.0f);
+      const float sign = ystl::rg (0, 1) == 0 ? -1.0f : 1.0f;
+      const auto candidate = anchor + side * width * sign;
+      const auto other = anchor - side * width * sign;
+      if (clear_step (candidate) || clear_step (other)) {
+        identity.hold_target = clear_step (candidate) ? candidate : other;
+        identity.hold_phase = 1;
+        identity.hold_until = game.Time () + 1.1f;
+      }
+      else { identity.hold_next = game.Time () + ystl::rg (0.7f, 1.4f); }
+    }
+    if (identity.hold_phase == 1 && (game.Time () >= identity.hold_until || bot->pev->origin.distance_sq (identity.hold_target) < ystl::sqrf (8.0f))) {
+      identity.hold_phase = 2;
+      identity.hold_target = anchor;
+    }
+    if (identity.hold_phase == 2 && distance < ystl::sqrf (8.0f)) {
+      identity.hold_phase = 0;
+      identity.hold_next = game.Time () + ystl::rg (0.9f, 2.4f);
+    }
   }
   bot->move_to_goal_ = bot->check_terrain_ = false;
   bot->move_speed_ = bot->strafe_speed_ = 0.0f;
   bot->look_at_safe_ = position.look_at;
   bot->aim_flags_ |= AimFlags::Camp;
-  if (position.crouch) {
-    bot->pev->button |= IN_DUCK;
+  if (game.Time () >= game_state.GetRoundStartTime () && identity.hold_phase != 0 && clear_step (identity.hold_target)) {
+    const float remaining = bot->pev->origin.distance2d (identity.hold_target);
+    if (remaining > 6.0f) {
+      bot->dest_origin_ = identity.hold_target;
+      bot->move_speed_ = ystl::min (bot->GetShiftSpeed (), ystl::clamp (remaining * 5.0f, 35.0f, 110.0f));
+    }
   }
+  if (position.crouch) { bot->pev->button |= IN_DUCK; }
   return true;
 }
 
 void SystemOne::PrintStatus () const {
   ctrl.Msg ("Jev %s: round=%d request=%d revision=%d pending=%d poll=%.1fs", team_ == Team::CT ? "CT" : "T", round_, request_, roster_revision_, pending_ ? 1 : 0, cv_systemone_poll_interval.As<float> ());
+  ctrl.Msg ("Economy: %s ready=%d average=%d known=%d score CT=%d T=%d MR12_last=%d", EconomyName (economy_mode_), economy_ready_ ? 1 : 0, economy_average_, economy_known_, ct_score_, t_score_, competitive_match.Rules ().MustBuy () ? 1 : 0);
   for (const auto &identity : identities_) {
     ctrl.Msg ("%s name=%s role=%s slot=%d userid=%d position=%s", identity.id, identity.name, identity.role,
       identity.slot, identity.userid, identity.position >= 0 ? positions_[identity.position].id : "pending");
@@ -733,6 +1020,26 @@ void SystemOne::RecordDeath (edict_t *killer, edict_t *victim) {
   ++event_revision_;
 }
 
+bool SystemOne::CanExecuteEarly () const {
+  int ct = 0, ts = 0, deaths = 0;
+  for (const auto &client : clients) {
+    if (!client.IsUsed () || !game.IsAliveEntity (client.ent)) { continue; }
+    if (game.GetPlayerTeam (client.ent) == Team::CT) { ++ct; }
+    else if (game.GetPlayerTeam (client.ent) == Team::Terrorist) { ++ts; }
+  }
+  const int count = ystl::min (event_count_, 32);
+  for (int i = 0; i < count; ++i) { const auto &event = events_[(event_count_ - count + i) % 32]; if (event.victim_team == 'C' && game.Time () - event.time <= 12.0f) { ++deaths; } }
+  return TCanExecuteEarly (ct, ts, deaths, static_cast<int> (required_.phase), game.Time () >= game_state.GetRoundStartTime ());
+}
+
+bool SystemOne::CanRetarget () const {
+  int alive = 0, deaths = 0;
+  for (const auto &client : clients) { if (client.IsUsed () && game.IsAliveEntity (client.ent) && game.GetPlayerTeam (client.ent) == Team::Terrorist) { ++alive; } }
+  const int count = ystl::min (event_count_, 32);
+  for (int i = 0; i < count; ++i) { const auto &event = events_[(event_count_ - count + i) % 32]; if (event.victim_team == 'T' && game.Time () - event.time <= 12.0f) { ++deaths; } }
+  return TCanRetarget (t_retargeted_, deaths, alive, static_cast<int> (required_.phase), game_state.IsBombPlanted ());
+}
+
 bool SystemOne::GunReady (int index) const {
   return team_ == Team::Terrorist && Goal (index) != -1;
 }
@@ -838,6 +1145,7 @@ void SystemOne::Frame () {
       }
     }
   }
+  if (applied_) { PrepareEconomy (); MaintainDrops (); }
   const int previous_stage = t_stage_;
   const auto decision = team_ == Team::CT ? EvaluateCTState (Evidence ()) : TerroristState ();
   if (decision.phase != required_.phase || decision.site != required_.site || previous_stage != t_stage_) {

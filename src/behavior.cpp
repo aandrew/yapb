@@ -338,8 +338,8 @@ void Bot::SetIdealReactionTimers (bool actual) {
   }
 
   if (actual) {
-    ideal_reaction_time_ = difficulty_data_->reaction[0];
-    actual_reaction_time_ = difficulty_data_->reaction[0];
+    ideal_reaction_time_ = rg (difficulty_data_->reaction[0], difficulty_data_->reaction[1]);
+    actual_reaction_time_ = ideal_reaction_time_;
 
     return;
   }

@@ -36,6 +36,7 @@ void MessageDispatch::NetMsgTextMsg () {
   };
 
   if (has_flag (cached, TextMsgCache::Commencing)) {
+    if (cv_systemone) { competitive_match.NewMatch (); }
     util.SetNeedForWelcome (true);
   }
   else if (has_flag (cached, TextMsgCache::CounterWin)) {
@@ -43,6 +44,7 @@ void MessageDispatch::NetMsgTextMsg () {
     reset_bomb_position ();
   }
   else if (has_flag (cached, TextMsgCache::RestartRound)) {
+    if (cv_systemone && ystl::StringRef (args_[msg].chars_) == "#Game_will_restart_in" && !competitive_match.InternalRestart ()) { competitive_match.NewMatch (); }
     bots.UpdateTeamEconomics (Team::CT, true);
     bots.UpdateTeamEconomics (Team::Terrorist, true);
 
@@ -262,26 +264,18 @@ void MessageDispatch::NetMsgDamage () {
 }
 
 void MessageDispatch::NetMsgMoney () {
-  // this message gets sent when the bots money amount changes
+  if (args_.size () < 1) { return; }
+  const int amount = ystl::clamp (args_[0].long_, 0, mp_maxmoney.As<int> ());
+  if (bot_ != nullptr) { bot_->money_amount_ = amount; }
+  system_one.ObserveMoney (recipient_, amount);
+  t_system_one.ObserveMoney (recipient_, amount);
+}
 
-  enum args {
-    money = 0,
-    min = 1
-  };
-
-  // check the minimum states
-  if (args_.size () < min || !bot_) {
-    return;
-  }
-  auto amount = args_[money].long_;
-
-  if (amount < 0) {
-    amount = 800;
-  }
-  else if (amount > mp_maxmoney.As<int> ()) {
-    amount = mp_maxmoney.As<int> ();
-  }
-  bot_->money_amount_ = amount;
+void MessageDispatch::NetMsgTeamScore () {
+  if (args_.size () < 2) { return; }
+  competitive_match.ObserveScore (args_[0].chars_, args_[1].long_);
+  system_one.SetScore (args_[0].chars_, args_[1].long_);
+  t_system_one.SetScore (args_[0].chars_, args_[1].long_);
 }
 
 void MessageDispatch::NetMsgStatusIcon () {
@@ -569,6 +563,7 @@ MessageDispatch::MessageDispatch () {
   register_entry ("AmmoPickup", NetMsg::AmmoPickup, &MessageDispatch::NetMsgAmmoPickup);
   register_entry ("Damage", NetMsg::Damage, &MessageDispatch::NetMsgDamage);
   register_entry ("Money", NetMsg::Money, &MessageDispatch::NetMsgMoney);
+  register_entry ("TeamScore", NetMsg::TeamScore, &MessageDispatch::NetMsgTeamScore);
   register_entry ("StatusIcon", NetMsg::StatusIcon, &MessageDispatch::NetMsgStatusIcon);
   register_entry ("DeathMsg", NetMsg::DeathMsg, &MessageDispatch::NetMsgDeathMsg);
   register_entry ("ScreenFade", NetMsg::ScreenFade, &MessageDispatch::NetMsgScreenFade);
@@ -690,11 +685,13 @@ void MessageDispatch::Start (edict_t *ent, int32_t type) {
     return;
   }
 
+  recipient_ = ent;
+
   // message for bot bot?
   if (!game.IsNullEntity (ent) && !(ent->v.flags & FL_DORMANT)) {
     bot_ = bots[ent];
 
-    if (!bot_) {
+    if (!bot_ && current_ != NetMsg::Money && current_ != NetMsg::TeamScore) {
       StopCollection ();
       return;
     }
