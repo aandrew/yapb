@@ -61,6 +61,7 @@ class SystemOne {
   int position_count_ {}, round_ {}, request_ {}, nonce_ {}, roster_revision_ {};
   bool config_loaded_ {}, config_attempted_ {}, pending_ {}, applied_ {};
   bool pending_opening_ {}, strategy_announced_ {};
+  char strategy_chat_[96] {};
   float deadline_ {}, next_send_ {}, next_poll_ {}, next_telemetry_ {}, next_chat_ {}, round_time_ {};
   uintptr_t socket_ { static_cast<uintptr_t> (-1) };
   ystl::String pending_state_ {};
@@ -101,6 +102,7 @@ class SystemOne {
   void UpdateRetakeKnowledge ();
   void ChooseDefuser (char site);
   bool t_locked_ {}, t_compromised_ {}, fake_chosen_ {}, t_retargeted_ {}, t_early_ {};
+  float recovery_deadline_ {};
   bool crunch_active_ {}, crunch_used_ {}, crunch_returning_ {};
   char crunch_choke_ { '-' };
   int crunch_home_[5] {}, crunch_count_ {};

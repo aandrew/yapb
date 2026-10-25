@@ -244,3 +244,6 @@ T retains the four starter entries and adds full-buy A/B pressure, half-buy A/B 
 
 
 At round start the caller announces `Caller: strategy - <configured name>.` after the opening order is accepted. Announcements are once per team per round and are not repeated on polls or caller succession. Where multiple T book entries share the chosen route, the applicable economy-specific name takes precedence over the generic entry. The bridge logs its matched strategy ID/name. The optional bounded, sanitized name travels with the validated YJ3 order; stale or invalid orders cannot announce a strategy. A provider timeout keeps native fallback behavior and does not claim a model-selected strategy.
+
+
+Recovery follow-up: pickup confirmation uses the inventory C4 bit, not a stale cached flag. Leaving recovery clears obsolete pickup/camp/movement tasks; the old fake is cancelled and the team regroups. Reassessment has a 2.5-second bound independent of cloud request cancellation. On timeout the caller selects A/B from team-observed site evidence and resumes the existing execute deadline. No hidden CT positions are used. Opening strategy chat is queued with spacing after the attack call to avoid the game chat throttle.

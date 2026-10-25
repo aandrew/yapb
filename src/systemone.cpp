@@ -515,6 +515,8 @@ void SystemOne::NewRound () {
   required_ = ordered_ = {};
   formation_ = 0;
   strategy_announced_ = false;
+  strategy_chat_[0] = '\0';
+  recovery_deadline_ = 0.0f;
   defuser_ = -1;
   planted_info_ = {}; shared_plant_origin_.clear (); plant_source_ = "unknown"; plant_reporter_ = -1;
   for (auto &sighting : sightings_) { sighting = {}; }
@@ -759,6 +761,7 @@ void SystemOne::BeginRequest () {
 }
 
 bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, char site, int formation, int timing) {
+  const bool leaving_recovery = team_ == Team::Terrorist && ordered_.phase == CTPhase::TRecoverBomb && phase != CTPhase::TRecoverBomb;
   const bool leaving_guard = team_ == Team::CT && ordered_.phase == CTPhase::GuardBomb && phase == CTPhase::Gather;
   const bool replan = team_ == Team::Terrorist && required_.phase == CTPhase::TReassess && (phase == CTPhase::TClear || phase == CTPhase::TExecute);
   const bool pivot = team_ == Team::Terrorist && t_locked_ && site != t_target_;
@@ -853,6 +856,13 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
     game.Print ("[Jev] Order round=%d request=%d source=%s phase=%s target=%c formation=%d identity=%s role=%s position=%s zone=%c changed=%d nonce=%d",
       round_, request_, source, CTPhaseName (phase), site, formation, identity.id, identity.role,
       positions_[targets[i]].id, positions_[targets[i]].zone, changed ? 1 : 0, nonce_);
+    if (auto *player = Player (i); leaving_recovery && player != nullptr) {
+      if (player->pickup_type_ == Pickup::DroppedC4) { player->pickup_item_ = nullptr; player->pickup_type_ = Pickup::None; }
+      const auto task = player->GetTaskId ();
+      if (task == TaskId::PickupItem || task == TaskId::Camp || task == TaskId::Pause || task == TaskId::MoveTo || task == TaskId::Normal) {
+        player->ClearTasks (); player->ClearSearchNodes (); player->Task ()->data = positions_[targets[i]].waypoint;
+      }
+    }
     if (auto *player = Player (i); player != nullptr && (changed || (phase_changed && phase == CTPhase::Retake)) &&
         (opening || player->GetTaskId () == TaskId::Normal || (phase == CTPhase::Retake &&
           (player->GetTaskId () == TaskId::Hunt || player->GetTaskId () == TaskId::MoveTo || player->GetTaskId () == TaskId::Camp || player->GetTaskId () == TaskId::Pause)))) {
@@ -1453,9 +1463,14 @@ void SystemOne::UpdateBombObjective () {
   if (team_ == Team::Terrorist) {
     for (const auto &client : clients) {
       if (!client.IsUsed () || !game.IsAliveEntity (client.ent) || game.GetPlayerTeam (client.ent) != Team::Terrorist) { continue; }
-      auto *player = bots[client.ent];
-      if ((client.ent->v.weapons & (1 << static_cast<int> (Weapon::C4))) != 0 || (player != nullptr && player->has_c4_)) {
-        if (drop_known_) { recovery_replan_ = true; TeamChat ("Caller: bomb recovered. Stay together while I reassess A and B."); }
+      if ((client.ent->v.weapons & (1 << static_cast<int> (Weapon::C4))) != 0) {
+        if (drop_known_) {
+          recovery_replan_ = true; recovery_deadline_ = game.Time () + 2.5f;
+          fake_member_ = -1; // Recovery ends the old fake: everyone rejoins the bomb group.
+          for (auto &passed : rush_passed_) { passed = false; }
+          pending_ = false; next_poll_ = game.Time ();
+          TeamChat ("Caller: bomb recovered. Regroup with the bomb, choosing the next attack site.");
+        }
         drop_known_ = false; objective_box_ = nullptr; return;
       }
     }
@@ -1757,6 +1772,10 @@ void SystemOne::Frame () {
       ApplyFallback (); // Objective-critical orders do not wait for a cloud call.
     }
   }
+  if (recovery_replan_ && recovery_deadline_ > 0.0f && game.Time () >= recovery_deadline_) {
+    ApplyFallback (); // Recovery must resume even if replies expire or the service is unavailable.
+    next_poll_ = game.Time ();
+  }
   bool any_connected = false;
   bool opening_ready = true;
   for (int i = 0; i < 5; ++i) {
@@ -1798,7 +1817,7 @@ void SystemOne::Frame () {
             round == round_ && request == request_ && nonce == nonce_ && revision == roster_revision_ && game.Time () < deadline_) {
           if (phase >= 0 && phase <= 13 && Apply (targets, "jev", static_cast<CTPhase> (phase), site, formation, timing)) {
             if (!strategy_announced_ && strategy != nullptr && (phase == 0 || phase == 6)) {
-              TeamChat (ystl::strings.format ("Caller: strategy - %s.", strategy));
+              ystl::strings.copy (strategy_chat_, strategy, sizeof (strategy_chat_));
               strategy_announced_ = true;
             }
             break;
@@ -1809,6 +1828,11 @@ void SystemOne::Frame () {
     if (pending_ && game.Time () >= deadline_) {
       ApplyFallback ();
     }
+  }
+  if (strategy_chat_[0] != '\0' && game.Time () >= last_team_chat_ + 1.2f) {
+    TeamChat (ystl::strings.format ("Caller: strategy - %s.", strategy_chat_));
+    strategy_chat_[0] = '\0';
+    next_chat_ = game.Time () + 1.2f;
   }
   UpdateNumbers ();
   if (applied_ && game.Time () >= next_chat_) {
