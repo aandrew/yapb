@@ -2,13 +2,13 @@
 
 The local Dust2 match has five roster places on each team. Stable bot IDs, combat
 roles, named positions and caller decisions are shared by native YaPB and a Node
-bridge. OpenRouter Jev (`typesafe/jev-1.14`) selects bounded team plans through
-`https://openrouter.ai/api/alpha/decisions` every ten seconds. Urgent objective
+bridge. OpenRouter Decider V1.2 (`perplexity/pplx-decider-v1.2`) selects bounded team plans through
+`https://openrouter.ai/api/alpha/decisions` every five seconds. Urgent objective
 transitions apply locally immediately, then ask Jev to refine placement.
 
 ## Run locally
 
-Prerequisites: Steam Counter-Strike 1.6 with HLDS, Git, Python/pip, Node 22+ and an
+Prerequisites: Steam Counter-Strike 1.6 with HLDS, Git, Python/pip, Node 24 and an
 OpenRouter key. No GPU or Visual Studio installation is needed.
 
 ```powershell
@@ -37,6 +37,8 @@ transient player slots or user IDs; replies validate both the identity revision
 and current engine binding.
 
 ## Round behavior
+
+The overview below contains earlier implementation notes. See the [current feature summary](../README.md) and [decision reference](jev-decisions.md) for the latest route, strategy-book, hearing and defuse behavior.
 
 CT openings are B/Mid/Short/Short/Long or B/Mid/A/Long/Long. CTs gather actual team
 sightings, public kill/death events and observed bomb information. A clear attack
@@ -112,7 +114,7 @@ command parser splits commands at semicolons, including inside quoted messages.
 
 Both teams wait for the caller's opening placement, then lock one native buy
 plan before spending. This uses the current team-average cash: below $3,500
-saves (including the $2,500 case), $3,500–$4,499 is a half buy, and $4,500+ is a
+saves (including the $2,500 case), $3,500â€“$4,499 is a half buy, and $4,500+ is a
 full buy. Save rounds spend at most $200 on ammunition; half buys cap each bot
 at $2,500 for SMGs/pistols and equipment. Existing primary weapons are kept.
 Full buys prefer AK/M4, with cheaper Galil/FAMAS/SMG/pistol alternatives when
@@ -125,9 +127,9 @@ round IDs and practice restarts. Under the MR12 assumption, the upcoming 12th
 and 24th regulation rounds, or a round with either side at 12 wins, override
 saving. Unknown scores never invent a last-round override. The native match controller preserves team scores across a side switch after
 twelve rounds, resets pistol cash to $800, and ends regulation at thirteen wins.
-A 12–12 tie starts MR3 overtime with $10,000 each half; 3–3 blocks repeat until
+A 12â€“12 tie starts MR3 overtime with $10,000 each half; 3â€“3 blocks repeat until
 a team wins four rounds in a block. Completed matches restart as new pistol
-matches. Console restarts reset the match to 0–0, while internal halftime and
+matches. Console restarts reset the match to 0â€“0, while internal halftime and
 overtime restarts preserve the score. Physical side switching still needs
 interactive match playtesting; the rule transitions have native tests.
 
@@ -146,7 +148,7 @@ record allocations; the Jev snapshot includes the economy summary.
 
 ## Active holds and base combat
 
-CT and T bots pause, make short shoulder peeks (24–48 units), and return inside
+CT and T bots pause, make short shoulder peeks (24â€“48 units), and return inside
 their assigned area while waiting for team instructions. Body traces include
 other players; floor checks reject unsafe drops and slopes. New assignments
 cancel local peeks. Enemy combat, planting/defusing and pickup tasks retain
@@ -154,7 +156,7 @@ priority. Both sides keep guns out at assigned spots. These are local bot
 behaviors and do not create extra Jev calls.
 
 `bridge/config/difficulty.cfg` overrides the Normal profile used by the named
-rosters: reaction 0.18–0.28 seconds, head aim 20%, aim error 12/12/18, and reduced
+rosters: reaction 0.18â€“0.28 seconds, head aim 20%, aim error 12/12/18, and reduced
 wall-fire chances. This is base YaPB tuning, independent of Jev. Reaction delay
 is randomized within that configured window; actual encounter-to-shot latency
 also includes visibility and AI scheduling. Miss rates remain distance/weapon
