@@ -1,4 +1,4 @@
-import {strategyContext} from './strategies.mjs';
+import {strategyContext,chosenStrategy} from './strategies.mjs';
 import {roles} from './config.mjs';
 import {ctPlans,validateTacticalPlacement} from './round-policy.mjs';
 import {tPlans,validateTPlan} from './t-policy.mjs';
@@ -44,14 +44,15 @@ export function requestFor(state,model='typesafe/jev-1.14'){
       `${p.phase_name}; target ${p.target_site}; attack delay ${p.timing}s; ${Object.entries(p.assignments).map(([id,pos])=>`${id} -> ${pos}`).join('; ')}`]))}}};
 }
 export function decodeAnswer(state,body){
-  const answer=body?.answers?.deployment,plan=plansFor(state)[answer?.choice];
+  const answer=body?.answers?.deployment,plans=plansFor(state),plan=plans[answer?.choice];
   if(answer?.type!=='choice'||!plan)throw new Error('invalid model answer');
-  return {plan,choice:answer.choice,confidence:answer.confidence??null,probabilities:answer.probabilities??null,model:body.model??null,usage:body.usage??null};
+  const strategy=chosenStrategy(state,plans,answer.choice);
+  return {plan:{...plan,strategy_name:strategy?.name},strategy,choice:answer.choice,confidence:answer.confidence??null,probabilities:answer.probabilities??null,model:body.model??null,usage:body.usage??null};
 }
 export function wireReply(state,plan){
   validatePlan(state,plan);
   const targets=state.bots.map(b=>state.positions.findIndex(p=>p.id===plan.assignments[b.id]));
-  return `YJ3 ${state.round} ${state.request} ${state.nonce} ${state.roster_revision} ${plan.phase} ${plan.target_site} ${plan.formation} ${plan.timing} ${targets.join(' ')}`;
+  return `YJ3 ${state.round} ${state.request} ${state.nonce} ${state.roster_revision} ${plan.phase} ${plan.target_site} ${plan.formation} ${plan.timing} ${targets.join(' ')}${plan.strategy_name?' |'+plan.strategy_name.replace(/[^a-zA-Z0-9 -]/g,' ').replace(/ +/g,' ').trim().slice(0,90):''}`;
 }
 export async function decide(state,{apiKey,fetchFn=fetch,timeout=1800}={}){
   if(!apiKey)throw new Error('missing OpenRouter key');

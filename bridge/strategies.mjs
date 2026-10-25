@@ -30,3 +30,9 @@ export function strategyContext(state,plans){
   selection_rule:'Choose a supplied deployment matching a suitable strategy. Conditions are guidance, not claims about enemy locations. Active bomb objectives override opening strategies.',
   strategies:config.strategies.filter(s=>eligibleStrategy(s,state)).map(s=>({...s,choices:Object.keys(plans).filter(k=>s.plan_prefixes.some(p=>k.startsWith(p)))})).filter(s=>s.choices.length)};
 }
+
+export function chosenStrategy(state,plans,choice){
+ const matches=strategyContext(state,plans).strategies.filter(s=>s.choices.includes(choice));
+ const selected=matches.find(s=>s.rounds!=='any'&&s.rounds!=='other')??matches[0];
+ return selected?{id:selected.id,name:selected.name}:null;
+}

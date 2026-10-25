@@ -60,7 +60,7 @@ class SystemOne {
   Position positions_[64] {};
   int position_count_ {}, round_ {}, request_ {}, nonce_ {}, roster_revision_ {};
   bool config_loaded_ {}, config_attempted_ {}, pending_ {}, applied_ {};
-  bool pending_opening_ {};
+  bool pending_opening_ {}, strategy_announced_ {};
   float deadline_ {}, next_send_ {}, next_poll_ {}, next_telemetry_ {}, next_chat_ {}, round_time_ {};
   uintptr_t socket_ { static_cast<uintptr_t> (-1) };
   ystl::String pending_state_ {};

@@ -100,3 +100,16 @@ test('callout areas distinguish floors and retain aliases',()=>{
    assert.ok(book.strategies.every(x=>x.rounds===category));
   }
  });
+
+test('opening reply carries the applicable strategy name safely for one native announcement',async()=>{
+ const {decodeAnswer}=await import('./decision.mjs');
+ const s=fixture('CT');s.t_plan.pistol_round=true;
+ const result=decodeAnswer(s,{answers:{deployment:{type:'choice',choice:'two_b_two_a_ct'}}});
+ assert.equal(result.strategy.id,'passive_pistol');
+ assert.ok(wireReply(s,result.plan).endsWith(' |two B two A CT'));
+ const t=fixture('T');t.t_plan.pistol_round=false;t.economy={ready:true,mode:'half'};
+ const choice=Object.keys(plansFor(t)).find(k=>k.startsWith('clear_then_A'));
+ const selected=decodeAnswer(t,{answers:{deployment:{type:'choice',choice}}});
+ assert.equal(selected.strategy.id,'half_buy_a');
+ assert.ok(!wireReply(t,{...selected.plan,strategy_name:'unsafe;"say test\n'}).includes(';'));
+});

@@ -514,6 +514,7 @@ void SystemOne::NewRound () {
   bomb_seen_site_ = '-';
   required_ = ordered_ = {};
   formation_ = 0;
+  strategy_announced_ = false;
   defuser_ = -1;
   planted_info_ = {}; shared_plant_origin_.clear (); plant_source_ = "unknown"; plant_reporter_ = -1;
   for (auto &sighting : sightings_) { sighting = {}; }
@@ -1780,6 +1781,15 @@ void SystemOne::Frame () {
           break;
         }
         response[length] = '\0';
+        char *strategy = strchr (response, '|');
+        if (strategy != nullptr) {
+          *strategy++ = '\0';
+          bool safe = *strategy != '\0' && strlen (strategy) <= 90;
+          for (const char *ch = strategy; *ch != '\0'; ++ch) {
+            if (!((*ch >= 'a' && *ch <= 'z') || (*ch >= 'A' && *ch <= 'Z') || (*ch >= '0' && *ch <= '9') || *ch == ' ' || *ch == '-')) { safe = false; }
+          }
+          if (!safe) { continue; }
+        }
         int round = 0, request = 0, nonce = 0, revision = 0, phase = 0, formation = 0, timing = 0, targets[5] {};
         char site = '-';
         char extra = 0;
@@ -1787,6 +1797,10 @@ void SystemOne::Frame () {
               &targets[0], &targets[1], &targets[2], &targets[3], &targets[4], &extra) == 13 &&
             round == round_ && request == request_ && nonce == nonce_ && revision == roster_revision_ && game.Time () < deadline_) {
           if (phase >= 0 && phase <= 13 && Apply (targets, "jev", static_cast<CTPhase> (phase), site, formation, timing)) {
+            if (!strategy_announced_ && strategy != nullptr && (phase == 0 || phase == 6)) {
+              TeamChat (ystl::strings.format ("Caller: strategy - %s.", strategy));
+              strategy_announced_ = true;
+            }
             break;
           }
         }
