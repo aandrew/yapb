@@ -2484,6 +2484,8 @@ bool Bot::IsBombDefusing (const ystl::Vector &bomb_origin) const {
     const auto bomb_distance_sq = client.origin.distance_sq (bomb_origin);
 
     if (bot && bot->is_alive_ && bot->team_ == team_) {
+      // A teammate covering the retake is not a competing defuser.
+      if (!system_one.CanDefuse (bot->index_) && !bot->has_progress_bar_) { continue; }
       const auto task_id = bot->GetTaskId ();
 
       // already defusing at bomb

@@ -90,6 +90,24 @@
       "plan_prefixes": [
         "clear_then_B"
       ]
+    },
+    {
+      "id": "short_to_a",
+      "name": "Short to A execute",
+      "rounds": "any",
+      "when": "Use the full-team Top Mid, Catwalk and Short Stairs approach to A when Long has been repeatedly used or defended. Stage together on Short, keep C4 with support behind teammates, then enter A from Short on the original execute deadline. A confirmed A pick can accelerate it.",
+      "plan_prefixes": [
+        "short_to_A"
+      ]
+    },
+    {
+      "id": "mid_to_b",
+      "name": "Mid to B execute",
+      "rounds": "any",
+      "when": "Use Top Mid through Mid Doors and CT Mid toward B Doors when tunnel attacks are predictable or the Mid route appears weak from current team observations. Move together through the route checkpoints, keep the bomb with support, and execute B from the doors rather than taking Upper Tunnels.",
+      "plan_prefixes": [
+        "mid_to_B"
+      ]
     }
   ]
 }

@@ -13,6 +13,8 @@ add('ct_repeat_long','CT',s=>{s.t_plan.pistol_round=true;s.ct_tendencies={observ
 add('t_pistol','T',s=>s.t_plan.pistol_round=true);
 add('t_delayed_gun','T',s=>{s.t_plan.pistol_round=false;s.t_plan.rush_allowed=false;s.economy={ready:true,mode:'full',average:4500};});
 add('t_recovered_bomb','T',s=>{s.t_plan={locked:true,target_site:'A',attack_delay:45,attack_at:60,stage:2,replanning:true,retargeted:true,elapsed:20};s.round_state.phase_code=13;s.bots[3].carrying_c4=true;});
+add('t_short_variety','T',s=>{s.t_plan.rush_allowed=false;s.opening_history={previous:[{round:1,route:'long_a'},{round:2,route:'long_a'}],recommended_route:'short_a'};});
+add('t_mid_b_variety','T',s=>{s.t_plan.rush_allowed=false;s.opening_history={previous:[{round:1,route:'long_a'},{round:2,route:'short_a'},{round:3,route:'tunnels_b'}],recommended_route:'mid_b'};});
 add('t_dropped_bomb','T',s=>{s.t_plan={locked:true,target_site:'A',attack_delay:45,attack_at:60,stage:2,elapsed:20};s.round_state.phase_code=10;s.bomb_objective={dropped:true,collector_id:'t_04',pickup_position:'recover_0'};for(let i=0;i<5;i++)s.positions.push({id:`recover_${i}`,site:'M',zone:'R',stage:-1,origin:[i*100,1500,36],look_at:[0,1500,36],radius:32,stance:'stand',preferred_roles:'support,entry,lurker,awper',waypoint:2000+i});});
 const report={checked_at:new Date().toISOString(),model:'perplexity/pplx-decider-v1.2',timeout_ms:1800,cases:[]};
 for(const {name,state} of cases){const start=performance.now();try{

@@ -2,6 +2,7 @@
 #pragma once
 
 namespace bot {
+inline bool DefuseNeedsApproach (float distance_sq, bool progress) { return !progress && distance_sq > 64.0f * 64.0f; }
 enum class CTPhase { Opening = 0, Gather, Cautious, Commit, Retake, LocateBomb, TCall, TClear, TExecute, TPostPlant, TRecoverBomb, GuardBomb, Crunch, TReassess };
 inline bool CrunchMixupAllowed (int round, int ct_score, int t_score, int last_crunch) {
   const int gap = ct_score < t_score ? 2 : 4;

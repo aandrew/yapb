@@ -14,7 +14,7 @@ export function validateConfig(roster,map) {
       !Number.isInteger(b.difficulty)||b.difficulty<0||b.difficulty>4||
       !Number.isInteger(b.personality)||b.personality<0||b.personality>2)throw new Error('Invalid roster profile');
   }
-  if(!token.test(map?.map)||!Array.isArray(map.positions)||map.positions.length<15||map.positions.length>64)throw new Error('Invalid position registry');
+  if(!token.test(map?.map)||!Array.isArray(map.positions)||map.positions.length<15||map.positions.length>128)throw new Error('Invalid position registry');
   if(new Set(map.positions.map(p=>p.id)).size!==map.positions.length)throw new Error('Duplicate position');
   for(const p of map.positions){
     if(!token.test(p.id)||!['A','B','M'].includes(p.site)||!['A','B','M','S','L','X','Y'].includes(p.zone)||!Number.isInteger(p.stage)||!vector(p.origin)||!vector(p.look_at)||
@@ -22,7 +22,7 @@ export function validateConfig(roster,map) {
       !Array.isArray(p.preferred_roles)||!p.preferred_roles.length||p.preferred_roles.some(r=>!roles.includes(r)))throw new Error('Invalid named position');
   }
   for(const [zone,count]of Object.entries({A:5,B:5,M:1,S:2,L:2}))if(map.positions.filter(p=>p.zone===zone).length<count)throw new Error('Incomplete CT formation registry');
-  for(const zone of ['X','Y'])for(const stage of [0,1,2])if(map.positions.filter(p=>p.zone===zone&&p.stage===stage).length!==5)throw new Error('Incomplete T clearing route');
+  for(const zone of ['X','Y'])for(const stage of (zone==='X'?[0,1,2,3,4,5]:[0,1,2,6,7,8]))if(map.positions.filter(p=>p.zone===zone&&p.stage===stage).length!==5)throw new Error('Incomplete T clearing route');
   return {roster,map};
 }
 export function loadConfig() {

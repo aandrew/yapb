@@ -1,4 +1,4 @@
-import {gameBriefing,describeChoices,callerInstructions} from './briefing.mjs';
+import {gameBriefing,describeChoices,callerInstructions,ctCallerInstructions} from './briefing.mjs';
 import {strategyContext,chosenStrategy} from './strategies.mjs';
 import {roles} from './config.mjs';
 import {ctPlans,validateTacticalPlacement} from './round-policy.mjs';
@@ -9,7 +9,7 @@ export function validateState(state){
   if(state?.version!==3||!['CT','T'].includes(state.team)||!token.test(state.map)||!['round_start','poll','telemetry'].includes(state.event)||
     ['round','request','nonce','roster_revision'].some(k=>!Number.isSafeInteger(state[k])||state[k]<0)||
     !Number.isFinite(state.game_time)||!Array.isArray(state.bots)||state.bots.length!==5||
-    !Array.isArray(state.positions)||state.positions.length<15||state.positions.length>64)throw new Error('invalid state');
+    !Array.isArray(state.positions)||state.positions.length<15||state.positions.length>128)throw new Error('invalid state');
   if(new Set(state.bots.map(b=>b.id)).size!==5||state.bots.some(b=>!token.test(b.id)||!roles.includes(b.role)||
     !Number.isInteger(b.slot)||b.slot<0||b.slot>32||!Number.isInteger(b.userid)||b.userid<0||
     !Number.isInteger(b.generation)||b.generation<0||typeof b.alive!=='boolean'||typeof b.connected!=='boolean'||
@@ -39,7 +39,7 @@ export function plansFor(state){
 export function requestFor(state,model='perplexity/pplx-decider-v1.2'){
   const plans=plansFor(state);
   return {model,state:{briefing:gameBriefing(state)},questions:{deployment:{type:'choice',
-    instructions:callerInstructions,criteria:describeChoices(state,plans)}}};
+    instructions:state.team==='CT'?ctCallerInstructions:callerInstructions,criteria:describeChoices(state,plans)}}};
 }
 export function decodeAnswer(state,body){
   const answer=body?.answers?.deployment,plans=plansFor(state),plan=plans[answer?.choice];

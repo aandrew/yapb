@@ -74,5 +74,8 @@ int main () {
   assert (EvaluateCTState (e).phase == CTPhase::Cautious && EvaluateCTState (e).site == 'A');
   e.planted = true; e.planted_site = 'B';
   assert (EvaluateCTState (e).phase == CTPhase::Retake && EvaluateCTState (e).site == 'B');
+  assert (DefuseNeedsApproach (100.0f * 100.0f, false));
+  assert (!DefuseNeedsApproach (60.0f * 60.0f, false));
+  assert (!DefuseNeedsApproach (100.0f * 100.0f, true));
   puts ("Native CT policy assertions passed.");
 }

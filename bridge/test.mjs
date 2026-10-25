@@ -40,7 +40,7 @@ test('cautious rotations leave one defender opposite and one mid',()=>{
  }
 });
 test('T caller offers A/B rush or a one-off delay within 30..60 seconds',()=>{
- const s=fixture('T'),plans=plansFor(s);assert.equal(Object.keys(plans).length,4);
+ const s=fixture('T'),plans=plansFor(s);assert.equal(Object.keys(plans).length,6);
  for(const p of Object.values(plans)){validatePlan(s,p);assert.ok(p.timing===0||(p.timing>=30&&p.timing<=60));}
  assert.equal(new Set(Object.values(plans).map(p=>p.target_site)).size,2);
 });
@@ -87,9 +87,9 @@ test('callout areas distinguish floors and retain aliases',()=>{
  assert.equal(areaFor([400,2300,-88]).id,'ct_spawn');assert.equal(areaFor([400,2300,164]).id,'short_a');
 });
 
- test('CT strategy categories offer supported matching formations and T has ten grounded entries',async()=>{
+ test('CT strategy categories offer supported matching formations and T has twelve grounded entries',async()=>{
   const {loadStrategies,strategyContext}=await import('./strategies.mjs');
-  assert.equal(loadStrategies('de_dust2','T').strategies.length,10);
+  assert.equal(loadStrategies('de_dust2','T').strategies.length,12);
   for(const [category,pistol,mode,key,formation] of [
    ['pistol',true,'save','two_b_two_a_ct',4],['buy',false,'full','two_b_mid_a_long',3],
    ['half_buy',false,'half','b_mid_two_close_short_a',5],['save',false,'save','four_b_one_a',6]]){
@@ -130,7 +130,7 @@ test('model gets a literal briefing and actionable calls, while raw state stays 
 test('non-rush execute timing accepts both new bounds and rejects outside them',()=>{
  for(const [nonce,delay] of [[0,30],[30,60]]){
   const s=fixture('T');s.nonce=nonce;s.t_plan.rush_allowed=false;
-  const plans=plansFor(s);assert.equal(Object.keys(plans).length,2);
+  const plans=plansFor(s);assert.equal(Object.keys(plans).length,4);
   for(const plan of Object.values(plans)){
    assert.equal(plan.timing,delay);validatePlan(s,plan);
    for(const timing of [29,61])assert.throws(()=>validatePlan(s,{...plan,timing}));

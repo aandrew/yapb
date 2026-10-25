@@ -19,7 +19,7 @@ See docs/jev-mvp.md for setup, protocol, acceptance, and current limits.
 - Fine callout boundaries in bridge/config/de_dust2.areas.json are drafts, not
   approved standing positions. Keep unknown locations unmapped. Respect height
   ranges for overlapping floors and the source graph hash when using node IDs.
-- Caller is an overlay on a combat role. Lock each T site and rush/45–80 second
+- Caller is an overlay on a combat role. Lock each T site and rush/30–60 second
   attack delay once per round, measured after freeze. A fresh kill and player
   advantage may offer an early execute at the next Jev poll. Two recent T
   deaths may offer one site switch; never postpone the original clock. Run with guns to ready
@@ -55,6 +55,8 @@ See docs/jev-mvp.md for setup, protocol, acceptance, and current limits.
 - Keep five-second polling bounded to one immutable snapshot and one in-flight
   request per team. Failed updates retain prior orders; round/roster changes invalidate
   old replies. Repeated polls must not repeat round-start announcements.
+- Caller actions must come from bot/player controls and team chat, never RCON.
+  RCON tooling is only for local server setup/administration.
 - Keep API requests outside the engine thread. Never send entity pointers. Omniscient world packets stay in the local
   orchestrator; never inject hidden enemy state into caller model requests. Validate round/request/nonce, roster membership, and expiry.
 - bridge/.env and all runtime/log files are private. Never commit credentials or

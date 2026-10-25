@@ -202,7 +202,7 @@ bool SystemOne::LoadConfig () {
       ++identity_count;
     }
     else if (line.starts_with ("position ")) {
-      if (position_count_ >= 64) {
+      if (position_count_ >= 128) {
         return false;
       }
       auto &position = positions_[position_count_];
@@ -474,7 +474,7 @@ void SystemOne::PublishWorldState () {
 }
 
 void SystemOne::UpdateNumbers () {
-  if (!applied_ || game.Time () < game_state.GetRoundStartTime () || game.Time () < last_team_chat_ + 1.2f) { return; }
+  if (team_ != Team::Terrorist || !applied_ || game.Time () < game_state.GetRoundStartTime () || game.Time () < last_team_chat_ + 1.2f) { return; }
   int own = 0, enemy = 0;
   for (const auto &client : clients) {
     if (!client.IsUsed () || !game.IsAliveEntity (client.ent)) { continue; }
@@ -636,6 +636,8 @@ const char *SystemOne::PositionLabel (int position) const {
   if (position < 0 || position >= position_count_) { return "team ready point"; }
   const auto &p = positions_[position];
   const auto id = ystl::StringRef (p.id);
+  if (id.starts_with ("t_a_") && p.stage >= 3) { return p.stage == 3 ? "Top Mid / Catwalk" : (p.stage == 4 ? "Short Stairs" : "A Short ready position"); }
+  if (id.starts_with ("t_b_") && p.stage >= 6) { return p.stage == 6 ? "Top Mid" : (p.stage == 7 ? "Mid Doors" : "CT Mid / B Doors ready position"); }
   if (id.starts_with ("t_a_")) {
     if (id.ends_with ("lurker")) { return p.stage == 0 ? "Top Mid" : (p.stage == 1 ? "Catwalk" : "A Short"); }
     if (p.stage == 0) { return "Outside Long"; }
@@ -875,7 +877,8 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
     else if (timing != attack_delay_ || (!replan && (phase != required_.phase && !(early && CanExecuteEarly (site)))) || (!replan && pivot && !CanRetarget ())) { return false; }
     const bool clearing = phase == CTPhase::TClear || (phase == CTPhase::TCall && timing > 0);
     const char zone = (phase == CTPhase::TRecoverBomb || phase == CTPhase::TReassess) ? 'R' : (clearing ? (site == 'A' ? 'X' : 'Y') : site);
-    const int stage = phase == CTPhase::TCall ? 0 : (pivot || replan ? 2 : t_stage_);
+    const int stage = phase == CTPhase::TCall ? (clearing ? formation : 0) : (pivot || replan ? 2 : t_stage_);
+    if (phase == CTPhase::TCall && clearing && !(stage == 0 || (stage == 3 && site == 'A') || (stage == 6 && site == 'B'))) { return false; }
     if (formation != (clearing ? stage : 0)) { return false; }
     for (int i = 0; i < 5; ++i) {
       if (clearing && IsCarrier (i) && targets[i] != CarrierPosition (site, stage)) { return false; }
@@ -886,7 +889,7 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
       else if (zones[i] != zone || (clearing && positions_[targets[i]].stage != stage)) { return false; }
     }
     if (!t_locked_) {
-      t_locked_ = true; t_target_ = site; attack_delay_ = timing;
+      t_locked_ = true; t_target_ = site; attack_delay_ = timing; t_stage_ = clearing ? stage : 0;
       attack_time_ = game_state.GetRoundStartTime () + static_cast<float> (timing);
       const int caller = Caller ();
       TeamChat (timing == 0 ? ystl::strings.format ("Caller %s: attack %c. Rush now, guns out!", caller >= 0 ? identities_[caller].id : "server", site) :
@@ -962,6 +965,9 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
     }
     else if (phase == CTPhase::TExecute) { TeamChat (ystl::strings.format ("Caller: execute %c NOW. Everyone move in. Fake rejoins attack.", site)); }
     else if (phase == CTPhase::Commit && (Evidence ().intruders_a >= 3 || Evidence ().intruders_b >= 3)) { TeamChat (ystl::strings.format ("Caller: three or more Ts inside %c. Everyone rotate %c NOW.", site, site)); }
+    else if (team_ == Team::CT && phase == CTPhase::Cautious) { TeamChat (ystl::strings.format ("Caller: reinforce %c. Hold the entry and keep the other site covered.", site)); }
+    else if (team_ == Team::CT && phase == CTPhase::Gather) { TeamChat ("Caller: hold the defensive setup, watch approaches and reinforce on contact."); }
+    else if (team_ == Team::CT && phase == CTPhase::LocateBomb) { TeamChat ("Caller: bomb planted, site unconfirmed. Locate the bomb and prepare to defuse."); }
     else if (phase != CTPhase::TClear) { TeamChat (ystl::strings.format ("Caller: %s, target %c.", CTPhaseName (phase), site)); }
   }
   if (opening) { next_chat_ = game.Time (); }
@@ -1090,7 +1096,7 @@ int SystemOne::Goal (int index) const {
       if (graph.Exists (node)) { return node; }
     }
   }
-  if (team_ == Team::Terrorist && ordered_.phase == CTPhase::TExecute && attack_delay_ == 0 && !rush_passed_[identity]) {
+  if (team_ == Team::Terrorist && ordered_.phase == CTPhase::TExecute && (attack_delay_ == 0 || t_stage_ >= 3) && !rush_passed_[identity]) {
     const int gate = RushGate (); if (graph.Exists (gate)) { return gate; }
   }
   if (team_ == Team::Terrorist && ordered_.phase == CTPhase::TExecute) {
@@ -1238,6 +1244,7 @@ char SystemOne::SiteFor (const ystl::Vector &origin, bool planted) const {
   char site = '-';
   for (int i = 0; i < position_count_; ++i) {
     const auto &position = positions_[i];
+    if (position.stage >= 0) { continue; } // Attack route checkpoints do not redefine bombsites.
     if (planted && position.zone != 'A' && position.zone != 'B') { continue; }
     const float distance = origin.distance_sq (position.origin);
     if (distance < best) { best = distance; site = position.site; }
@@ -1455,7 +1462,7 @@ bool SystemOne::BuildObjectivePositions (const ystl::Vector &origin) {
     snprintf (position.preferred_roles, sizeof (position.preferred_roles), "%s", team_ == Team::Terrorist && slot == 0 ? "support" : "support,entry,lurker,awper");
   }
   if (objective_base_ < 0) {
-    if (position_count_ + 5 > 64) { return false; }
+    if (position_count_ + 5 > 128) { return false; }
     objective_base_ = position_count_; position_count_ += 5;
   }
   for (int i = 0; i < 5; ++i) { positions_[objective_base_ + i] = planned[i]; }
@@ -1464,7 +1471,8 @@ bool SystemOne::BuildObjectivePositions (const ystl::Vector &origin) {
 }
 
 int SystemOne::RushGate () const {
-  const char *id = t_target_ == 'A' ? "t_a_2_entry" : "t_b_2_entry";
+  char route[32] {}; snprintf (route, sizeof (route), "t_%c_%d_entry", t_target_ == 'A' ? 'a' : 'b', (t_stage_ / 3) * 3 + 2);
+  const char *id = route;
   for (int i = 0; i < position_count_; ++i) { if (ystl::StringRef (positions_[i].id) == id) { return positions_[i].waypoint; } }
   return -1;
 }
@@ -1665,6 +1673,23 @@ bool SystemOne::Defusing (int index) const {
     game_state.IsBombPlanted () && !shared_plant_origin_.empty () && IdentityFor (index) == defuser_;
 }
 
+bool SystemOne::BeginDefuse (Bot *player) {
+  if (!Defusing (player->index_) || player->IsBombDefusing (shared_plant_origin_) ||
+      player->pev->origin.distance_sq2d (shared_plant_origin_) > ystl::sqrf (192.0f) ||
+      ystl::abs (player->pev->origin.z - shared_plant_origin_.z) > 72.0f ||
+      !util.IsVisible (shared_plant_origin_ + ystl::Vector (0.0f,0.0f,8.0f), player->Ent ())) { return false; }
+  if (player->GetTaskId () == TaskId::DefuseBomb || player->has_progress_bar_) { return true; }
+  const auto task = player->GetTaskId ();
+  const bool safe_escape_override = task == TaskId::EscapeFromBomb && game_state.GetBombTimeLeft () >
+    (player->has_defuser_ ? 5.0f : 10.0f) + player->pev->origin.distance2d (shared_plant_origin_) / 200.0f + 0.5f;
+  if (!safe_escape_override && task != TaskId::Normal && task != TaskId::Camp && task != TaskId::Pause && task != TaskId::MoveTo && task != TaskId::PickupItem) { return false; }
+  player->ClearTasks (); player->ClearSearchNodes ();
+  player->pickup_item_ = game_state.GetBombEntity (); player->pickup_type_ = Pickup::PlantedC4;
+  player->StartTask (TaskId::DefuseBomb, TaskPri::kDefuseBomb, kInvalidNodeIndex, 0.0f, true);
+  ReportSignal (player->index_, "Defusing the bomb. Cover me.", 2);
+  return true;
+}
+
 void SystemOne::ChooseDefuser (char site) {
   auto *current = defuser_ >= 0 ? Player (defuser_) : nullptr;
   if (current != nullptr && game.IsAliveEntity (current->Ent ())) { return; }
@@ -1735,7 +1760,10 @@ void SystemOne::UpdateRetakeKnowledge () {
   if (previous != planted_info_.Site ()) {
     game.Print ("[Jev] Shared plant site=%c source=%s reporter=%s", planted_info_.Site (), plant_source_, plant_reporter_ >= 0 ? identities_[plant_reporter_].id : "none");
   }
-  if (ordered_.phase == CTPhase::Retake) { ChooseDefuser (planted_info_.Site ()); }
+  if (ordered_.phase == CTPhase::Retake) {
+    ChooseDefuser (planted_info_.Site ());
+    if (auto *player = defuser_ >= 0 ? Player (defuser_) : nullptr; player != nullptr) { BeginDefuse (player); }
+  }
 }
 
 char SystemOne::ObservedBombsite (const ystl::Vector &origin) const {
@@ -1785,7 +1813,7 @@ bool SystemOne::Cautious (int index) const {
   if (entity == nullptr) { return false; }
   for (int i = 0; i < position_count_; ++i) {
     const auto &position = positions_[i];
-    if (position.site == t_target_ && position.stage >= 1 && ystl::StringRef (position.id).ends_with ("entry") &&
+    if (position.site == t_target_ && position.stage / 3 == t_stage_ / 3 && position.stage % 3 >= 1 && ystl::StringRef (position.id).ends_with ("entry") &&
         entity->v.origin.distance_sq (position.origin) <= ystl::sqrf (300.0f)) { return true; }
   }
   return false;
@@ -1820,7 +1848,7 @@ CTDecision SystemOne::TerroristState () {
     attack_time_ = game.Time (); t_early_ = true;
   }
   if (game.Time () >= attack_time_) { return { CTPhase::TExecute, t_target_ }; }
-  if (t_stage_ < 2 && game.Time () >= game_state.GetRoundStartTime ()) {
+  if (t_stage_ % 3 < 2 && game.Time () >= game_state.GetRoundStartTime ()) {
     int entry = -1;
     for (int i = 0; i < 5; ++i) {
       auto *entity = Entity (i);
@@ -1979,7 +2007,7 @@ void SystemOne::Frame () {
           int ready = identity.position;
           if (i != FakeMember ()) {
             for (int p = 0; p < position_count_; ++p) {
-              if (positions_[p].site == t_target_ && positions_[p].stage == 2 &&
+              if (positions_[p].site == t_target_ && positions_[p].stage == (t_stage_ / 3) * 3 + 2 &&
                   ystl::StringRef (positions_[p].preferred_roles) == identity.role) { ready = p; break; }
             }
           }

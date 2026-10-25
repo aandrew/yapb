@@ -356,6 +356,8 @@ void Bot::TaskNormal () {
 
   if ((t_system_one.GunReady (index_) || system_one.Goal (index_) != -1) && UsesKnife () && HasAnyAmmo ()) { SelectBestWeapon (); }
 
+  if (system_one.BeginDefuse (this)) { return; }
+
   // An arrived carrier must not wait at a named hold until the attack timer expires.
   if (cv_systemone && game.MapIs (MapFlags::Demolition) && team_ == Team::Terrorist && has_c4_ && (pev->weapons & (1 << static_cast<int> (Weapon::C4))) != 0 && in_bomb_zone_ &&
       t_system_one.PlantAllowed (index_) && !has_flag (states_, Sense::SeeingEnemy) && !game.IsAliveEntity (enemy_)) {
@@ -1237,7 +1239,8 @@ void Bot::TaskPlantBomb () {
 }
 
 void Bot::TaskDefuseBomb () {
-  const float full_defuse_time = has_defuser_ ? 7.0f : 12.0f;
+  const bool coordinated_defuse = system_one.Defusing (index_);
+  const float full_defuse_time = coordinated_defuse ? (has_defuser_ ? 5.0f : 10.0f) : (has_defuser_ ? 7.0f : 12.0f);
   const float time_to_blow_up = game_state.GetBombTimeLeft ();
 
   float defuse_remaining_time = full_defuse_time;
@@ -1385,6 +1388,12 @@ void Bot::TaskDefuseBomb () {
   dest_origin_ = bomb_pos;
   entity_ = bomb_pos;
 
+  // Having a bomb entity or a previous USE button is not proof defusing began.
+  // Finish the final approach instead of freezing just outside interaction range.
+  if (coordinated_defuse && DefuseNeedsApproach (bomb_pos.distance_sq2d (pev->origin), has_progress_bar_)) {
+    move_to_goal_ = check_terrain_ = true; move_speed_ = pev->maxspeed; strafe_speed_ = 0.0f;
+    return;
+  }
   // prefer the carried bomb, fall back to the tracked bomb entity
   auto bomb_entity = pickup_item_;
 

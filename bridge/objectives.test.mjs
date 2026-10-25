@@ -39,7 +39,7 @@ test('three Ts inside a site force a full rotation before bomb confirmation',()=
 });
 test('ordinary gun rounds cannot choose an opening rush, while pistols can',()=>{
  const s=fixture('T');s.t_plan.rush_allowed=false;s.t_plan.pistol_round=false;
- const p=plansFor(s);assert.equal(Object.keys(p).length,2);assert.ok(Object.values(p).every(p=>p.timing>=45));
+ const p=plansFor(s);assert.equal(Object.keys(p).length,4);assert.ok(Object.values(p).every(p=>p.timing>=30));
  s.t_plan.rush_allowed=true;s.t_plan.pistol_round=true;const rush=plansFor(s).rush_A;assert.ok(rush);
  s.t_plan.rush_allowed=false;assert.throws(()=>validatePlan(s,rush));
 });

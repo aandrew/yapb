@@ -61,7 +61,7 @@ class SystemOne {
     bool crouch {};
   };
   Identity identities_[5] {};
-  Position positions_[64] {};
+  Position positions_[128] {};
   int position_count_ {}, round_ {}, request_ {}, nonce_ {}, roster_revision_ {};
   bool config_loaded_ {}, config_attempted_ {}, pending_ {}, applied_ {};
   bool pending_opening_ {}, strategy_announced_ {};
@@ -185,6 +185,7 @@ public:
   bool Planting (int index) const;
   bool Defusing (int index) const;
   bool CanDefuse (int index) const;
+  bool BeginDefuse (Bot *player);
   bool PlantAllowed (int index) const;
   void ReportSignal (int index, ystl::StringRef message, int priority = 1);
   void RecordSound (int observer, edict_t *emitter, const ystl::Vector &origin, const char *kind);

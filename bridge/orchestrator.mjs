@@ -1,3 +1,4 @@
+import {TOpeningHistory} from './t-opening-history.mjs';
 import {CTTendencies} from './ct-intel.mjs';
 import {areaFor} from './areas.mjs';
 const token=/^[a-z][a-z0-9_]{0,40}$/;
@@ -42,7 +43,7 @@ export function siteIntel(state){
  return result;
 }
 export class SilentOrchestrator {
- constructor({now=Date.now}={}){this.now=now;this.world=null;this.records=new Map();this.callers=new Map();this.ledger=new Map();this.ctHistory=new CTTendencies();}
+ constructor({now=Date.now}={}){this.now=now;this.world=null;this.records=new Map();this.callers=new Map();this.ledger=new Map();this.ctHistory=new CTTendencies();this.tHistory=new TOpeningHistory();}
  ingestWorld(packet){
   validateWorldState(packet);
   if(this.world&&(this.world.server_session!==packet.server_session||this.world.map!==packet.map)){this.records.clear();this.callers.clear();this.ledger.clear();}
@@ -77,6 +78,7 @@ export class SilentOrchestrator {
    combat_reports:current.flatMap(reportsForEvent),recent_round_reports:recent,team_numbers:{own_alive:own,enemy_alive:enemy,man_advantage:own>enemy,even:own===enemy}};
   view.site_intel=siteIntel(view);
   if(view.team==='CT')view.ct_tendencies=this.ctHistory.observe(view);
+  if(view.team==='T')view.opening_history=this.tHistory.observe(view);
   view.orchestrator_status={source:'silent_orchestrator',knowledge:'team_reports_and_public_status',numbers:view.team_numbers,
    objective:state.bomb_planted?'retake_or_defend_plant':state.bomb_objective?.dropped?(state.team==='T'?'recover_bomb_together':'protect_observed_dropped_bomb'):state.t_plan?.replanning?'reassess_attack_site':'site_strategy',
    sites:view.site_intel,report_count:view.combat_reports.length,
