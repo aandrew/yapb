@@ -336,6 +336,15 @@ void TickManager::RunCommand (Bot *bot) {
 
   bot->TranslateInput ();
 
+  // An engine-confirmed defuse is a held player input on every command tick,
+  // including ticks between full AI updates. Never pulse USE or drift off it.
+  if (KeepDefuseLatch (!!cv_systemone && bot->team_ == Team::CT, game.IsAliveEntity (bot->Ent ()),
+        game_state.IsBombPlanted () && !game_state.GetBombOrigin ().empty (), bot->has_progress_bar_, bot->GetTaskId () == TaskId::DefuseBomb)) {
+    bot->pev->button |= IN_USE;
+    if (bot->duck_defuse_ || (bot->old_buttons_ & IN_DUCK)) { bot->pev->button |= IN_DUCK; }
+    bot->move_speed_ = bot->strafe_speed_ = 0.0f;
+  }
+
   auto input_angles = [bot] () {
     if (bot->IsStuckState () || bot->GetTaskId () == TaskId::Attack || !bot->approaching_ladder_timer_.elapsed ()) {
       return bot->pev->v_angle;

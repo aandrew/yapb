@@ -221,12 +221,14 @@ void Bot::FilterTasks () {
 }
 
 void Bot::ClearTasks () {
+  if (!tasks_.Empty () && KeepDefuseLatch (!!cv_systemone && team_ == Team::CT, is_alive_, game_state.IsBombPlanted () && !game_state.GetBombOrigin ().empty (), has_progress_bar_, GetTaskId () == TaskId::DefuseBomb)) { return; }
   // this function resets bot tasks stack, by removing all entries from the stack
 
   tasks_.Clear ();
 }
 
 void Bot::StartTask (TaskId id, float desire, int data, float time, bool resume, bool preserve_goal) {
+  if (!tasks_.Empty () && KeepDefuseLatch (!!cv_systemone && team_ == Team::CT, is_alive_, game_state.IsBombPlanted () && !game_state.GetBombOrigin ().empty (), has_progress_bar_, GetTaskId () == TaskId::DefuseBomb)) { return; } // Preserve the active task and its start time.
   if (id == TaskId::PickupItem && pickup_type_ == Pickup::DroppedC4 && !t_system_one.CanRecover (index_)) { return; }
   if ((id == TaskId::DefuseBomb || (id == TaskId::PickupItem && pickup_type_ == Pickup::PlantedC4)) && !system_one.CanDefuse (index_)) { return; }
   if (id == TaskId::PlantBomb && !t_system_one.PlantAllowed (index_)) { return; }
@@ -337,6 +339,7 @@ void Bot::ClearTask (TaskId id) {
 }
 
 void Bot::CompleteTask () {
+  if (!tasks_.Empty () && KeepDefuseLatch (!!cv_systemone && team_ == Team::CT, is_alive_, game_state.IsBombPlanted () && !game_state.GetBombOrigin ().empty (), has_progress_bar_, GetTaskId () == TaskId::DefuseBomb)) { return; }
   // this function called whenever a task is completed
 
   IgnoreCollision ();
@@ -1239,7 +1242,7 @@ void Bot::TaskPlantBomb () {
 }
 
 void Bot::TaskDefuseBomb () {
-  const bool coordinated_defuse = system_one.Defusing (index_);
+  const bool coordinated_defuse = system_one.Defusing (index_) || (!!cv_systemone && team_ == Team::CT && has_progress_bar_);
   const float full_defuse_time = coordinated_defuse ? (has_defuser_ ? 5.0f : 10.0f) : (has_defuser_ ? 7.0f : 12.0f);
   const float time_to_blow_up = game_state.GetBombTimeLeft ();
 
@@ -1289,6 +1292,19 @@ void Bot::TaskDefuseBomb () {
         PushRadioChat (RadioChat::SectorClear);
       }
     }
+    return;
+  }
+  else if (coordinated_defuse && has_progress_bar_) {
+    // The engine has latched onto the bomb. Do not reassess combat, timing or
+    // approach while holding the interaction: those checks caused retry loops.
+    defuse_watch_timer_.invalidate (); nav_timer_.start ();
+    aim_flags_ |= AimFlags::Entity; entity_ = bomb_pos; dest_origin_ = bomb_pos;
+    move_to_goal_ = check_terrain_ = false; move_speed_ = strafe_speed_ = 0.0f;
+    reload_data_.state = Reload::None; reload_data_.is_reloading = false;
+    pev->button |= IN_USE;
+    if (duck_defuse_ || (old_buttons_ & IN_DUCK)) { pev->button |= IN_DUCK; }
+    auto *bomb = game_state.GetBombEntity ();
+    if (!game.IsNullEntity (bomb) && game.GetEntityOrigin (bomb).distance_sq (pev->origin) < ystl::sqrf (96.0f)) { MDLL_Use (bomb, Ent ()); }
     return;
   }
   else if (defuse_remaining_time > time_to_blow_up) {

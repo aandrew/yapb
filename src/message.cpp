@@ -479,6 +479,9 @@ void MessageDispatch::NetMsgBarTime () {
     return;
   }
 
+  if (cv_systemone && bot_->team_ == Team::CT && bot_->has_progress_bar_ != (args_[enabled].long_ > 0)) {
+    game.Print ("[Jev] Defuse progress slot=%d active=%d task=%d time=%.2f", bot_->index_ + 1, args_[enabled].long_ > 0 ? 1 : 0, static_cast<int> (bot_->GetTaskId ()), game.Time ());
+  }
   // check if has progress bar
   if (args_[enabled].long_ > 0) {
     bot_->has_progress_bar_ = true; // the progress bar on a hud

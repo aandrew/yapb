@@ -716,13 +716,14 @@ ystl::String SystemOne::BuildState (bool telemetry) {
     const bool assigned = identity.position >= 0 && identity.position < position_count_;
     const bool carrying = IsCarrier (i);
     const int actual_goal = player != nullptr ? Goal (player->index_) : (assigned ? positions_[identity.position].waypoint : -1);
-    payload.appendf ("%s{\"id\":\"%s\",\"role\":\"%s\",\"slot\":%d,\"userid\":%d,\"generation\":%d,\"human\":%s,\"carrying_c4\":%s,\"caller\":%s,\"connected\":%s,\"alive\":%s,\"health\":%.0f,\"money\":%d,\"weapon\":%d,\"origin\":[%.1f,%.1f,%.1f],\"position\":\"%s\",\"site\":\"%c\",\"goal\":%d,\"rotating\":%s}",
+    payload.appendf ("%s{\"id\":\"%s\",\"role\":\"%s\",\"slot\":%d,\"userid\":%d,\"generation\":%d,\"human\":%s,\"carrying_c4\":%s,\"caller\":%s,\"connected\":%s,\"alive\":%s,\"health\":%.0f,\"money\":%d,\"weapon\":%d,\"origin\":[%.1f,%.1f,%.1f],\"position\":\"%s\",\"site\":\"%c\",\"goal\":%d,\"rotating\":%s,\"progress_bar\":%s,\"defuse_task\":%s}",
       i == 0 ? "" : ",", identity.id, identity.role, identity.slot, identity.userid, identity.generation,
       identity.human ? "true" : "false", carrying ? "true" : "false", Caller () == i ? "true" : "false", entity != nullptr ? "true" : "false", alive ? "true" : "false", entity != nullptr ? entity->v.health : 0.0f,
       MoneyFor (i), player != nullptr ? static_cast<int> (player->current_weapon_) : 0,
       origin.x, origin.y, origin.z, assigned ? positions_[identity.position].id : "pending",
       assigned ? positions_[identity.position].site : '-', actual_goal,
-      alive && graph.Exists (actual_goal) && origin.distance_sq (graph[actual_goal].origin) > ystl::sqrf (96.0f) ? "true" : "false");
+      alive && graph.Exists (actual_goal) && origin.distance_sq (graph[actual_goal].origin) > ystl::sqrf (96.0f) ? "true" : "false",
+      player != nullptr && player->has_progress_bar_ ? "true" : "false", player != nullptr && player->GetTaskId () == TaskId::DefuseBomb ? "true" : "false");
   }
   payload.appendf ("],\"economy\":{\"ready\":%s,\"mode\":\"%s\",\"average\":%d,\"known_members\":%d,\"ct_score\":%d,\"t_score\":%d,\"score_known\":%s,\"match_format\":\"MR12\",\"must_buy\":%s},\"observed_contacts\":[",
     economy_ready_ ? "true" : "false", EconomyName (economy_mode_), economy_average_, economy_known_, ct_score_, t_score_, score_known_ ? "true" : "false", competitive_match.Rules ().MustBuy () ? "true" : "false");
@@ -1678,7 +1679,12 @@ bool SystemOne::BeginDefuse (Bot *player) {
       player->pev->origin.distance_sq2d (shared_plant_origin_) > ystl::sqrf (192.0f) ||
       ystl::abs (player->pev->origin.z - shared_plant_origin_.z) > 72.0f ||
       !util.IsVisible (shared_plant_origin_ + ystl::Vector (0.0f,0.0f,8.0f), player->Ent ())) { return false; }
-  if (player->GetTaskId () == TaskId::DefuseBomb || player->has_progress_bar_) { return true; }
+  if (player->GetTaskId () == TaskId::DefuseBomb) { return true; }
+  if (player->has_progress_bar_) {
+    player->ClearTasks ();
+    player->StartTask (TaskId::DefuseBomb, TaskPri::kDefuseBomb, kInvalidNodeIndex, 0.0f, true);
+    return true;
+  }
   const auto task = player->GetTaskId ();
   const bool safe_escape_override = task == TaskId::EscapeFromBomb && game_state.GetBombTimeLeft () >
     (player->has_defuser_ ? 5.0f : 10.0f) + player->pev->origin.distance2d (shared_plant_origin_) / 200.0f + 0.5f;

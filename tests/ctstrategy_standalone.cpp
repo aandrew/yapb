@@ -77,5 +77,11 @@ int main () {
   assert (DefuseNeedsApproach (100.0f * 100.0f, false));
   assert (!DefuseNeedsApproach (60.0f * 60.0f, false));
   assert (!DefuseNeedsApproach (100.0f * 100.0f, true));
+  assert (KeepDefuseLatch (true, true, true, true, true));
+  assert (!KeepDefuseLatch (true, true, true, false, true)); // Interrupted latch releases retry logic.
+  assert (!KeepDefuseLatch (true, true, false, true, true)); // Defused/exploded objective releases task.
+  assert (!KeepDefuseLatch (true, false, true, true, true)); // Death cannot keep a task locked.
+  assert (!KeepDefuseLatch (false, true, true, true, true)); // Disabled system retains upstream behavior.
+  assert (!KeepDefuseLatch (true, true, true, true, false)); // Unrelated progress bars are not defuses.
   puts ("Native CT policy assertions passed.");
 }
