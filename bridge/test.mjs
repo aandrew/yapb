@@ -137,3 +137,15 @@ test('non-rush execute timing accepts both new bounds and rejects outside them',
   }
  }
 });
+
+test('Decider migration retains typed choice validation, errors and a bounded request deadline',async()=>{
+ const s=fixture(),choice=Object.keys(plansFor(s))[0];
+ assert.equal(requestFor(s).model,'perplexity/pplx-decider-v1.2');
+ for(const status of [401,429,500,503])await assert.rejects(()=>decide(s,{apiKey:'test',fetchFn:async()=>({ok:false,status})}),new RegExp(`HTTP ${status}`));
+ for(const body of [{answers:{deployment:{type:'choice',choice:'invented'}}},{answers:{deployment:{type:'text',choice}}},{}])await assert.rejects(()=>decide(s,{apiKey:'test',fetchFn:async()=>({ok:true,json:async()=>body})}),/invalid model answer/);
+ await assert.rejects(()=>decide(s,{apiKey:'test',fetchFn:async()=>({ok:true,json:async()=>{throw SyntaxError('invalid JSON');}})}),/invalid JSON/);
+ await assert.rejects(()=>decide(s,{apiKey:'test',timeout:5,fetchFn:async(_,o)=>new Promise((resolve,reject)=>{
+  const keepAlive=setTimeout(()=>reject(Error('deadline did not fire')),100);
+  o.signal.addEventListener('abort',()=>{clearTimeout(keepAlive);reject(o.signal.reason);},{once:true});
+ })}),e=>e.name==='TimeoutError');
+});

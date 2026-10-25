@@ -32,11 +32,11 @@ export function plansFor(state){
   const plans=state.team==='T'?tPlans(state):ctPlans(state);
   if(state.team==='CT'&&state.round_state.phase_code===0){
     const book=strategyContext(state,plans),allowed=new Set(book.strategies.flatMap(s=>s.choices));
-    if(allowed.size)return Object.fromEntries(Object.entries(plans).filter(([key])=>allowed.has(key)));
+    if(allowed.size)return Object.fromEntries(Object.entries(plans).filter(([key])=>allowed.has(key)||key.startsWith('tendency_stack_')));
   }
   return plans;
 }
-export function requestFor(state,model='typesafe/jev-1.14'){
+export function requestFor(state,model='perplexity/pplx-decider-v1.2'){
   const plans=plansFor(state);
   return {model,state:{briefing:gameBriefing(state)},questions:{deployment:{type:'choice',
     instructions:callerInstructions,criteria:describeChoices(state,plans)}}};

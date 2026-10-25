@@ -1,3 +1,4 @@
+import {adaptiveCTOptions} from './ct-intel.mjs';
 import {roundCategory} from './strategies.mjs';
 export const phases=['round_start','gather_info','cautious_rotate','committed_rotate','retake','locate_bomb',
   't_call','t_clear','t_execute','t_postplant','t_recover_bomb','guard_bomb','crunch','t_reassess_after_recovery'];
@@ -8,6 +9,7 @@ export function assessCT(state) {
   const a=e.sightings_a>=2||(e.sightings_a>=1&&e.recent_ct_deaths_a>=1);
   const b=e.sightings_b>=2||(e.sightings_b>=1&&e.recent_ct_deaths_b>=1);
   if(e.bomb_recent&&((e.bomb_site==='A'&&a)||(e.bomb_site==='B'&&b)))return {phase:3,site:e.bomb_site};
+  if(e.site_lost_a||e.site_lost_b)return {phase:3,site:e.site_lost_b&&!e.site_lost_a?'B':'A'};
   if((e.intruders_a??0)>=3||(e.intruders_b??0)>=3)return {phase:3,site:(e.intruders_b??0)>(e.intruders_a??0)?'B':'A'};
   if(e.crunch_active)return {phase:12,site:e.crunch_choke};
   if(a||b){
@@ -34,6 +36,11 @@ export function validateTacticalPlacement(state,plan) {
    return plan;
   }
   if(plan.phase!==phase||plan.target_site!==site)throw new Error('stale or unsupported phase');
+  if(plan.formation===7){
+   const options=adaptiveCTOptions(state);
+   const valid=Object.values(options).some(o=>o.group&&targets.filter(p=>p.crunch_group===o.group).length===4&&targets.filter(p=>p.crunch_group!==o.group).every(p=>p.site===(o.group==='B'?'A':'B')));
+   if(!valid)throw Error('unsupported tendency stack');return plan;
+  }
   const first=counts.B===1&&counts.M===1&&counts.S===2&&counts.L===1;
   const second=counts.B===1&&counts.M===1&&counts.A===1&&counts.L===2;
   const hold=state.bots.every(b=>b.position===plan.assignments[b.id]);
@@ -42,7 +49,9 @@ export function validateTacticalPlacement(state,plan) {
     (plan.formation===3&&counts.B===2&&counts.M===1&&counts.A===1&&counts.L===1)||
     (plan.formation===4&&counts.B===2&&counts.A===2&&counts.M===1)||
     (plan.formation===5&&counts.B===1&&counts.M===1&&counts.S===2&&counts.A===1)||
-    (plan.formation===6&&counts.B===4&&counts.A===1):
+    (plan.formation===6&&counts.B===4&&counts.A===1)||
+    (phase===1&&plan.formation===8&&state.round_state.sightings_a>=1&&counts.A===3&&counts.B===1&&counts.M===1)||
+    (phase===1&&plan.formation===9&&state.round_state.sightings_b>=1&&counts.B===3&&counts.A===1&&counts.M===1):
     phase===2?(counts[site]===3&&counts[site==='A'?'B':'A']===1&&counts.M===1):
     (phase===3||phase===4)&&counts[site]===5;
   if(!valid)throw new Error('placement violates CT round policy');
@@ -91,6 +100,15 @@ export function ctPlans(state) {
         const defender=nearest(living,b);fixed[defender.id]=b.id;fixed[nearest(living.filter(x=>x.id!==defender.id),a).id]=a.id;
       }
     }
+    if(phase===2||formation===8||formation===9){
+      const threatened=formation===8?'A':formation===9?'B':site;
+      const targetsHere=targets.filter(p=>p.site===threatened),available=[...living];
+      const count=Math.min(targetsHere.length,available.length>=4?available.length-2:Math.min(2,available.length));
+      for(let i=0;i<count;i++){
+       available.sort((a,b)=>Math.hypot(...a.origin.map((v,k)=>v-targetsHere[i].origin[k]))-Math.hypot(...b.origin.map((v,k)=>v-targetsHere[i].origin[k])));
+       fixed[available.shift().id]=targetsHere[i].id;
+      }
+    }
     const plan={phase,phase_name:phases[phase],target_site:site,formation,timing:0,
       assignments:bestAssignment(state,targets,preferRoles,fixed)};
     validateTacticalPlacement(state,plan);plans[key]=plan;
@@ -113,6 +131,12 @@ export function ctPlans(state) {
   }else{
     add(`${phases[phase]}_${site}_roles`,take(state,site,5));
     add(`${phases[phase]}_${site}_nearest`,take(state,site,5),0,false);
+  }
+  for(const [key,o] of Object.entries(adaptiveCTOptions(state))){
+    if(o.group){
+      const group=state.positions.filter(p=>p.crunch_group===o.group),cover=take(state,o.group==='B'?'A':'B',1);
+      if(group.length===4)add(key,[...group,...cover],7);
+    }else add(key,[...take(state,o.site,3),...take(state,o.site==='A'?'B':'A',1),...take(state,'M',1)],o.formation);
   }
   if(canCrunch(state)){
    for(const [choke,label]of [['L','long'],['S','short'],['M','mid'],['B','b_tunnels']]){

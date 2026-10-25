@@ -30,7 +30,7 @@ for(const team of ['CT','T']){
  const list=requests.filter(r=>r.state.team===team).map(r=>r.state);
  for(let i=1;i<list.length;i++){const a=list[i-1],b=list[i];
   if(a.round===b.round&&a.roster_revision===b.roster_revision&&b.request===a.request+1&&b.event==='poll'){
-   const delta=+(b.game_time-a.game_time).toFixed(2);if(Math.abs(delta-10)<.25)cadence.push({team,round:b.round,seconds:delta});
+   const delta=+(b.game_time-a.game_time).toFixed(2);if(Math.abs(delta-5)<.25)cadence.push({team,round:b.round,seconds:delta});
   }
  }
 }
@@ -45,7 +45,7 @@ for(const s of states.filter(s=>s.team==='T'&&s.t_plan?.locked)){
 const phases=Object.fromEntries(['CT','T'].map(t=>[t,[...new Set(states.filter(s=>s.team===t).map(s=>s.round_state.phase))]]));
 const humanStates=states.filter(s=>s.bots.some(b=>b.human));
 const counts=Object.fromEntries(['CT','T'].map(t=>[t,applied.filter(d=>d.team===t).length]));
-const report={checked_at:new Date().toISOString(),protocol:3,live_decisions_applied:counts,latest_applied:applied.slice(-12),ten_second_intervals:cadence.slice(-20),observed_phases:phases,locked_t_rounds:locked.size,clock_violations:clockViolations,round_role_announcements:announcements.slice(-20),human_roster_snapshots:humanStates.length,public_death_snapshots:states.filter(s=>s.round_events?.length).length,planted_snapshots:states.filter(s=>s.bomb_planted).length,limitations:['Human client chat and replacement need interactive playtesting if human_roster_snapshots is zero.','Unobserved phases are covered by policy tests, not live evidence.','Fine callout boundaries and staged routes remain draft.'],passed:counts.CT>0&&counts.T>0&&cadence.some(c=>c.team==='CT')&&cadence.some(c=>c.team==='T')&&clockViolations===0};
+const report={checked_at:new Date().toISOString(),protocol:3,live_decisions_applied:counts,latest_applied:applied.slice(-12),five_second_intervals:cadence.slice(-20),observed_phases:phases,locked_t_rounds:locked.size,clock_violations:clockViolations,round_role_announcements:announcements.slice(-20),human_roster_snapshots:humanStates.length,public_death_snapshots:states.filter(s=>s.round_events?.length).length,planted_snapshots:states.filter(s=>s.bomb_planted).length,limitations:['Human client chat and replacement need interactive playtesting if human_roster_snapshots is zero.','Unobserved phases are covered by policy tests, not live evidence.','Fine callout boundaries and staged routes remain draft.'],passed:counts.CT>0&&counts.T>0&&cadence.some(c=>c.team==='CT')&&cadence.some(c=>c.team==='T')&&clockViolations===0};
 if(process.argv[2])writeFileSync(resolve(process.argv[2]),JSON.stringify(report,null,2)+'\n');
-console.log(JSON.stringify({passed:report.passed,applied:counts,phases,ten_second_intervals:cadence.length,clock_violations:clockViolations,humans:humanStates.length,planted:report.planted_snapshots},null,2));
+console.log(JSON.stringify({passed:report.passed,applied:counts,phases,five_second_intervals:cadence.length,clock_violations:clockViolations,humans:humanStates.length,planted:report.planted_snapshots},null,2));
 process.exitCode=report.passed?0:1;

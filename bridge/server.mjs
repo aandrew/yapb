@@ -1,3 +1,4 @@
+import {DecisionStore,validateAppliedOrder} from './decision-store.mjs';
 import dgram from 'node:dgram';
 import http from 'node:http';
 import {appendFileSync, mkdirSync, writeFileSync} from 'node:fs';
@@ -10,12 +11,15 @@ const orchestrator=new SilentOrchestrator();
 
 const root = dirname(fileURLToPath(import.meta.url));
 mkdirSync(join(root,'logs'), {recursive:true});
+const database=new DecisionStore(join(root,'logs','decisions.sqlite'));
+let databaseError=null;
 const socket = dgram.createSocket('udp4');
 const seen = new Map();
 const busy = new Set();
 function record(event) {
   const row = {time:new Date().toISOString(), ...event};
   appendFileSync(join(root,'logs','decisions.jsonl'), JSON.stringify(row)+'\n');
+  try {database.record(row);databaseError=null;} catch {databaseError='database_write_failed';console.error(databaseError);}
   console.log(JSON.stringify(row));
 }
 socket.on('message', async (buffer, peer) => {
@@ -23,6 +27,7 @@ socket.on('message', async (buffer, peer) => {
   let state;
   try {
     const packet=JSON.parse(buffer);
+    if(packet.event==='order_applied'){record({event:'order_applied',order:validateAppliedOrder(packet)});return;}
     if(packet.event==='world_state'){
       orchestrator.ingestWorld(packet);writeFileSync(join(root,'logs','world-state.json'),JSON.stringify(orchestrator.snapshot()));return;
     }
@@ -45,14 +50,14 @@ socket.on('message', async (buffer, peer) => {
   const start=performance.now();
   record({event:'request',state});
   try {
-    const result = await decide(state, {apiKey:process.env.OPENROUTER_API_KEY,onRequest:request=>record({event:'model_request',team:state.team,round:state.round,request_id:state.request,payload:request})});
+    const result = await decide(state, {apiKey:process.env.OPENROUTER_API_KEY,onRequest:request=>record({event:'model_request',server_session:state.server_session,map:state.map,nonce:state.nonce,roster_revision:state.roster_revision,team:state.team,round:state.round,request:state.request,payload:request})});
     const reply=Buffer.from(wireReply(state,result.plan));
     seen.set(key,reply);
     socket.send(reply, peer.port, peer.address);
-    record({event:'decision',team:state.team,round:state.round,request:state.request,nonce:state.nonce,roster_revision:state.roster_revision,state_event:state.event,game_time:state.game_time,latency_ms:Math.round(performance.now()-start),...result});
+    record({event:'decision',server_session:state.server_session,map:state.map,team:state.team,round:state.round,request:state.request,nonce:state.nonce,roster_revision:state.roster_revision,state_event:state.event,game_time:state.game_time,latency_ms:Math.round(performance.now()-start),...result});
   } catch (error) {
     // Never log request headers, credentials, or raw provider errors.
-    record({event:'fallback',round:state.round,request:state.request,nonce:state.nonce,error:error.message});
+    record({event:'fallback',server_session:state.server_session,map:state.map,team:state.team,roster_revision:state.roster_revision,round:state.round,request:state.request,nonce:state.nonce,error:error.message});
   } finally { busy.delete(peer.port); }
 });
 socket.on('error', error => { console.error(error.code); socket.close(); process.exitCode=1; });
@@ -61,7 +66,9 @@ socket.bind(28777,'127.0.0.1',()=>console.log('YaPB Jev bridge listening on 127.
 const diagnostics=http.createServer((req,res)=>{
  if(req.method!=='GET'){res.writeHead(405);res.end();return;}
  const path=req.url?.split('?')[0];
- const result=path==='/health'?orchestrator.health():path==='/world'||path==='/state'?orchestrator.snapshot():path==='/callers/CT'?orchestrator.caller('CT'):path==='/callers/T'?orchestrator.caller('T'):undefined;
+ const params=new URL(req.url,'http://localhost').searchParams;
+ const detail=path?.match(/^\/decisions\/(\d+)$/);
+ const result=path==='/decisions'?database.list({team:params.get('team'),round:params.has('round')?Number(params.get('round')):undefined,limit:params.get('limit')??50}):detail?database.detail(Number(detail[1])):path==='/health'?{...orchestrator.health(),database:{...database.stats(),error:databaseError}}:path==='/world'||path==='/state'?orchestrator.snapshot():path==='/callers/CT'?orchestrator.caller('CT'):path==='/callers/T'?orchestrator.caller('T'):undefined;
  res.writeHead(result===undefined?404:result===null?503:200,{'Content-Type':'application/json','Cache-Control':'no-store'});
  res.end(JSON.stringify(result??{error:'not available'}));
 });

@@ -704,9 +704,9 @@ ystl::String SystemOne::BuildState (bool telemetry) {
     if (team == Team::CT) { ++ct_alive; }
     if (team == Team::Terrorist) { ++t_alive; }
   }
-  payload.appendf ("],\"round_state\":{\"phase\":\"%s\",\"phase_code\":%d,\"target_site\":\"%c\",\"deployed\":%s,\"sightings_a\":%d,\"sightings_b\":%d,\"intruders_a\":%d,\"intruders_b\":%d,\"recent_ct_deaths_a\":%d,\"recent_ct_deaths_b\":%d,\"bomb_recent\":%s,\"bomb_site\":\"%c\",\"planted_site\":\"%c\",\"previous_target\":\"%c\",\"formation\":%d,\"ct_alive\":%d,\"t_alive\":%d,\"ct_deaths\":%d,\"t_deaths\":%d,\"event_revision\":%d,\"dropped_secured\":%s,\"dropped_site\":\"%c\",\"crunch_available\":%s,\"crunch_used\":%s,\"crunch_active\":%s,\"crunch_choke\":\"%c\",\"elapsed\":%.2f},\"bomb\":{\"planted\":%s,\"known\":%s,\"site\":\"%c\",\"age\":%.2f,\"source\":\"%s\"",
+  payload.appendf ("],\"round_state\":{\"phase\":\"%s\",\"phase_code\":%d,\"target_site\":\"%c\",\"deployed\":%s,\"sightings_a\":%d,\"sightings_b\":%d,\"intruders_a\":%d,\"intruders_b\":%d,\"site_lost_a\":%s,\"site_lost_b\":%s,\"recent_ct_deaths_a\":%d,\"recent_ct_deaths_b\":%d,\"bomb_recent\":%s,\"bomb_site\":\"%c\",\"planted_site\":\"%c\",\"previous_target\":\"%c\",\"formation\":%d,\"ct_alive\":%d,\"t_alive\":%d,\"ct_deaths\":%d,\"t_deaths\":%d,\"event_revision\":%d,\"dropped_secured\":%s,\"dropped_site\":\"%c\",\"crunch_available\":%s,\"crunch_used\":%s,\"crunch_active\":%s,\"crunch_choke\":\"%c\",\"elapsed\":%.2f},\"bomb\":{\"planted\":%s,\"known\":%s,\"site\":\"%c\",\"age\":%.2f,\"source\":\"%s\"",
     CTPhaseName (required_.phase), static_cast<int> (required_.phase), required_.site, applied_ ? "true" : "false",
-    evidence.sightings_a, evidence.sightings_b, evidence.intruders_a, evidence.intruders_b, evidence.deaths_a, evidence.deaths_b, evidence.bomb_recent ? "true" : "false",
+    evidence.sightings_a, evidence.sightings_b, evidence.intruders_a, evidence.intruders_b, evidence.lost_a ? "true" : "false", evidence.lost_b ? "true" : "false", evidence.deaths_a, evidence.deaths_b, evidence.bomb_recent ? "true" : "false",
     evidence.bomb_site, evidence.planted_site, evidence.previous_target, formation_, ct_alive, t_alive, ct_deaths_, t_deaths_, event_revision_, evidence.secured_drop ? "true" : "false", evidence.dropped_site, CrunchAvailable () ? "true" : "false", crunch_used_ ? "true" : "false", crunch_active_ ? "true" : "false", crunch_choke_, game.Time () - game_state.GetRoundStartTime (),
     evidence.planted ? "true" : "false", (evidence.planted && evidence.planted_site != '-') || evidence.bomb_recent ? "true" : "false",
     evidence.planted ? evidence.planted_site : evidence.bomb_site, evidence.planted ? 0.0f : game.Time () - bomb_seen_time_,
@@ -798,7 +798,23 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
     else if (crunch_returning_) {
       for (int i = 0; i < 5; ++i) { if (targets[i] != crunch_home_[i]) { return false; } }
     }
+    else if (formation == 7) {
+      if (phase != required_.phase || site != required_.site || (phase != CTPhase::Opening && phase != CTPhase::Gather) || timing != 0 ||
+          game_state.IsBombPlanted () || drop_known_ || game.Time () - game_state.GetRoundStartTime () > 25.0f) { return false; }
+      char group = '-'; int count = 0;
+      for (int i = 0; i < 5; ++i) {
+        const char choke = CrunchGroup (targets[i]);
+        int matching = 0; for (int j = 0; j < 5; ++j) { matching += choke != '-' && CrunchGroup (targets[j]) == choke ? 1 : 0; }
+        if (matching == 4) { group = choke; count = matching; break; }
+      }
+      if (count != 4) { return false; }
+      for (int i = 0; i < 5; ++i) {
+        auto *entity = Entity (i); if (entity == nullptr || !game.IsAliveEntity (entity)) { return false; }
+        if (CrunchGroup (targets[i]) != group && positions_[targets[i]].site != (group == 'B' ? 'A' : 'B')) { return false; }
+      }
+    }
     else if (phase != required_.phase || site != required_.site || timing != 0 || !ValidateCTPlacement (phase, site, formation, zones, holding)) { return false; }
+    if ((formation == 8 && Evidence ().sightings_a < 1) || (formation == 9 && Evidence ().sightings_b < 1)) { return false; }
     if ((formation >= 1 && formation <= 5) && phase != CTPhase::Crunch) {
       int alive = 0; bool a = false, b = false, mid = false;
       for (int i = 0; i < 5; ++i) { auto *entity = Entity (i); if (entity != nullptr && game.IsAliveEntity (entity)) { ++alive; a |= positions_[targets[i]].site == 'A'; b |= positions_[targets[i]].site == 'B'; mid |= positions_[targets[i]].site == 'M'; } }
@@ -845,6 +861,7 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
   applied_ = true;
   const bool phase_changed = ordered_.phase != phase || ordered_.site != site;
   ordered_ = { phase, site };
+  const bool adaptive_changed = formation != formation_;
   formation_ = formation;
   if (phase == CTPhase::Retake) { ChooseDefuser (site); }
   else { defuser_ = -1; }
@@ -870,6 +887,10 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
       player->ClearSearchNodes ();
       player->Task ()->data = positions_[targets[i]].waypoint;
     }
+  }
+  if (adaptive_changed && formation >= 7 && formation <= 9 && phase != CTPhase::Crunch) {
+    TeamChat (formation == 7 ? "Caller: repeat attack pattern. Stack four at the assigned choke, one covers the other site." :
+      (formation == 8 ? "Caller: early A pressure. Reinforce A now, keep B and Mid covered." : "Caller: early B pressure. Reinforce B now, keep A and Mid covered."));
   }
   if (phase_changed && !opening) {
     if (leaving_guard) { TeamChat ("Caller: bomb picked up. Reform A/B defense with the players we have left."); }
@@ -900,6 +921,11 @@ bool SystemOne::Apply (const int *targets, const char *source, CTPhase phase, ch
   }
   if (opening) { next_chat_ = game.Time (); }
   next_telemetry_ = game.Time ();
+  ystl::String report {};
+  report.appendf ("{\"version\":1,\"event\":\"order_applied\",\"server_session\":%d,\"map\":\"%s\",\"team\":\"%s\",\"round\":%d,\"request\":%d,\"nonce\":%d,\"roster_revision\":%d,\"source\":\"%s\",\"phase\":%d,\"target_site\":\"%c\",\"game_time\":%.2f,\"assignments\":{",
+    system_one.server_session_, game.GetMapName (), team_ == Team::CT ? "CT" : "T", round_, request_, nonce_, roster_revision_, source, static_cast<int> (phase), site, game.Time ());
+  for (int i = 0; i < 5; ++i) { report.appendf ("%s\"%s\":\"%s\"", i == 0 ? "" : ",", identities_[i].id, positions_[targets[i]].id); }
+  report.append ("}}"); Send (report);
   return true;
 }
 
@@ -1196,6 +1222,13 @@ CTEvidence SystemOne::Evidence () const {
     if (site == 'A') { ++evidence.deaths_a; }
     if (site == 'B') { ++evidence.deaths_b; }
   }
+  int defenders_a = 0, defenders_b = 0;
+  for (int i = 0; i < 5; ++i) {
+    auto *entity = Entity (i); if (entity == nullptr || !game.IsAliveEntity (entity)) { continue; }
+    const char site = ObservedBombsite (entity->v.origin); defenders_a += site == 'A' ? 1 : 0; defenders_b += site == 'B' ? 1 : 0;
+  }
+  evidence.lost_a = team_ == Team::CT && evidence.intruders_a >= 2 && evidence.deaths_a >= 1 && defenders_a == 0;
+  evidence.lost_b = team_ == Team::CT && evidence.intruders_b >= 2 && evidence.deaths_b >= 1 && defenders_b == 0;
   return evidence;
 }
 

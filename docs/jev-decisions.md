@@ -77,3 +77,37 @@ Recommended next audit format (not yet implemented): a compact record for each d
 The provider now receives `state.briefing`, a literal tactical match report, instead of the raw game snapshot. It describes objectives, clock, score/economy, alive counts, teammate roles/health/weapons and named locations, bomb possession/drop/plant, attack clock, recent sightings and quiet kill/death reports with ages, previous-round context and observed site uncertainty. Coordinates, waypoint IDs, nonce/revision fields and duplicate internal objects remain local. Each available choice has a plain-language action, applicable strategy guidance and living-player destinations. Explicit hypothetical examples distinguish a 4v4 site pick from an advantage, a cross-site pivot, bomb recovery, and CT site commitment.
 
 Full structured state is still validated locally and used to build and validate the exact same complete-team orders. The bridge records `model_request` with the exact provider payload alongside its private structured request log, so reviewers can see what Jev actually read for each decision. This changes representation and prompting, not the menu or model. Natural-language superiority is a testable hypothesis, not an established result.
+
+
+## Local decision database
+
+The bridge stores private test data in `bridge/logs/decisions.sqlite` (SQLite WAL, no external service). `events` retains structured requests, exact model requests, decisions, fallbacks, quiet combat reports, telemetry and accepted native orders. `decisions` indexes one request by server session/map/team/round/request/nonce/roster revision with full state, exact provider briefing/options and response. `applied_orders` records native accepted placements, including automatic and fallback orders, with their source. This is separate from a provider selecting a response. No credentials or API headers are stored. Database and WAL files are ignored through the logs directory.
+
+Read-only local endpoints: `http://127.0.0.1:28778/decisions?team=T&round=2&limit=50` (latest first, maximum 200), `/decisions/<id>` (full input, response and correlated accepted orders), `/health` (counts and database write health). Data persists across bridge restarts. Collection starts with this release; older JSONL logs are retained separately and are not automatically imported.
+
+Request status `requested` means no reply/fallback recorded yet; `reply_sent` means the bridge sent an order, not that the engine accepted it; `accepted` requires a matching native acknowledgement; `fallback` means the provider/bridge request failed. Automatic/fallback accepted orders remain in their own table even without a Jev decision. Telemetry provides later game-state context, but no automatic tactical-quality label, match win attribution or physical movement-success claim is added. UDP acknowledgements can be lost: lack of acknowledgement is not proof of rejection. Database write failure is surfaced in health and stderr, while existing JSONL logging continues.
+
+Example review queries:
+
+```sql
+SELECT team, choice, status, count(*) AS n, round(avg(latency_ms)) AS avg_ms
+FROM decisions GROUP BY team, choice, status;
+SELECT server_session, map, round, team, source, phase, target_site, assignments_json
+FROM applied_orders ORDER BY id DESC LIMIT 50;
+```
+
+
+## CT active defense and Decider migration
+
+The current decision model is `perplexity/pplx-decider-v1.2`, using the existing OpenRouter `/api/alpha/decisions` contract. Polling is every five seconds per team, with one in-flight request per team and the existing 1.8-second provider timeout / two-second native acceptance deadline. Earlier objective-driven updates remain enabled. The real API migration matrix is `node --env-file=bridge/.env bridge/verify-decision-model.mjs`; its private JSON report covers nine CT/T scenarios and validates the selected menu choice and resulting wire order. Unit tests also cover rate limits, provider failures, malformed answers and timeout behavior. Passing these checks establishes integration compatibility, not better tactical performance.
+
+CT caller briefings now describe observed attack tendencies. The orchestrator keeps up to five previous observed rounds of CT sightings per session/map and resets on a detected new match. At least three unique enemies seen within the normal eight-second observation window establishes a grouped approach. A four-player Long/Short/Mid/tunnels stack is offered when that approach had an early group (first 35 seconds) in at least two previous rounds and at least half of the observed history. Stack choices are limited to opening/gather, five live teammates and the first 25 seconds. They hold the bounded choke, leave one opposite-site defender and yield to current bomb/attack priorities. Unlike a crunch, the stack does not automatically return after a short quiet interval; later caller orders can redistribute it. No hidden enemy positions contribute. History currently lives in bridge memory, so a bridge restart starts fresh; the underlying decision database persists.
+
+`preempt_reinforce_A/B` is offered during gather on a single fresh site-approach sighting, retaining opposite-site and Mid cover rather than sending all five. Jev can retain the baseline defense if the evidence is weak; one contact does not force a full rotation. Cautious/preemptive plans prioritize living defenders for reinforcement slots rather than counting dead identities as arriving defenders.
+
+An overrun site triggers local full commitment before waiting for Jev: at least two observed intruders, a CT death attributed to that site within eight seconds, and no living CT inside its defined site footprint. `site_lost_a/b` records this inference explicitly; it is not proof of permanent control. Three observed intruders still trigger full commitment independently, and planted bombs / known dropped bombs retain priority.
+
+Validation for this release: 44 bridge tests including database persistence/correlation and CT history isolation; native CT/economy/MR12/T policy groups; native DLL build; nine live API scenarios. Live server cadence, database writes and native acceptances are checked separately after deployment. Tactical effectiveness requires actual playtesting.
+
+
+Deployment observation: both CT and T issued five-second intervals (5.00–5.01 seconds in the initial sample), and native acknowledgements populated accepted decision records using `perplexity/pplx-decider-v1.2-20261016`. One T request exceeded the 1.8-second deadline; native fallback was recorded and subsequent T decisions were accepted. This is a demonstrated handled timeout, not a claim of zero provider failures. A sent reply without acknowledgement remains `reply_sent`; it is not labelled accepted or rejected.

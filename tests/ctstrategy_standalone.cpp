@@ -62,5 +62,10 @@ int main () {
   assert (ValidateCTPlacement (CTPhase::Opening, '-', 5, half, false));
   assert (ValidateCTPlacement (CTPhase::Opening, '-', 6, eco, false));
   assert (!ValidateCTPlacement (CTPhase::Opening, '-', 6, split, false));
+  e = {}; e.lost_b = true; e.intruders_b = 2;
+  assert (EvaluateCTState (e).phase == CTPhase::Commit && EvaluateCTState (e).site == 'B');
+  assert (ValidateCTPlacement (CTPhase::Gather, '-', 8, all_a, false) == false);
+  const char reinforce[5] { 'A','A','A','B','M' };
+  assert (ValidateCTPlacement (CTPhase::Gather, '-', 8, reinforce, false));
   puts ("Native CT policy assertions passed.");
 }

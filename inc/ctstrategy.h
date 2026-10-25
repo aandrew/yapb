@@ -29,7 +29,7 @@ struct CTEvidence {
   bool deployed {}, planted {}, bomb_recent {};
   char planted_site { '-' }, bomb_site { '-' }, previous_target { '-' };
   int sightings_a {}, sightings_b {}, deaths_a {}, deaths_b {}, intruders_a {}, intruders_b {};
-  bool secured_drop {};
+  bool secured_drop {}, lost_a {}, lost_b {};
   char dropped_site { 'M' };
   bool crunch_active {};
   char crunch_choke { '-' };
@@ -67,6 +67,7 @@ inline CTDecision EvaluateCTState (const CTEvidence &e) {
   if (e.bomb_recent && ((e.bomb_site == 'A' && a) || (e.bomb_site == 'B' && b))) {
     return { CTPhase::Commit, e.bomb_site };
   }
+  if (e.lost_a || e.lost_b) { return { CTPhase::Commit, e.lost_b && !e.lost_a ? 'B' : 'A' }; }
   if (e.intruders_a >= 3 || e.intruders_b >= 3) { return { CTPhase::Commit, e.intruders_b > e.intruders_a ? 'B' : 'A' }; }
   if (e.crunch_active) { return { CTPhase::Crunch, e.crunch_choke }; }
   if (a || b) {
@@ -103,7 +104,9 @@ inline bool ValidateCTPlacement (CTPhase phase, char site, int formation, const 
       (formation == 3 && b == 2 && mid == 1 && a == 1 && long_a == 1) ||
       (formation == 4 && b == 2 && a == 2 && mid == 1) ||
       (formation == 5 && b == 1 && mid == 1 && short_a == 2 && a == 1) ||
-      (formation == 6 && b == 4 && a == 1);
+      (formation == 6 && b == 4 && a == 1) ||
+      (phase == CTPhase::Gather && formation == 8 && a == 3 && b == 1 && mid == 1) ||
+      (phase == CTPhase::Gather && formation == 9 && b == 3 && a == 1 && mid == 1);
   }
   if (phase == CTPhase::Cautious) {
     return (site == 'A' && a == 3 && b == 1 && mid == 1) || (site == 'B' && b == 3 && a == 1 && mid == 1);

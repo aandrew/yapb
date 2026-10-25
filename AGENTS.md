@@ -34,6 +34,9 @@ See docs/jev-mvp.md for setup, protocol, acceptance, and current limits.
   inference. One defuser follows shared bomb coordinates, others cover. Prefer
   supports to carry C4, keep bot carriers behind teammates, recover a dropped
   bomb before T site plans, and let CTs guard a bomb they actually observed.
+- CT may use evidence-backed early four-player choke stacks and single-contact
+  preemptive reinforcement. Use CT-observed prior-round patterns only; current
+  bomb/attack evidence overrides predictions. Do not count dead slots as reinforcements.
 - CT caller may crunch Long/Short/Mid/B tunnels with 3-4 players early. Bound
   target nodes to the choke, save original assignments, and return when quiet.
   A confirmed pick on the selected site can trigger immediate execution.
@@ -49,7 +52,7 @@ See docs/jev-mvp.md for setup, protocol, acceptance, and current limits.
   personal affordability. MR12 last-half/match-point rounds override saves;
   use public TeamScore, never director round counters. Only donate after own
   buy with more than $4,500 left, a legal replacement and a nearby poor teammate.
-- Keep ten-second polling bounded to one immutable snapshot and one in-flight
+- Keep five-second polling bounded to one immutable snapshot and one in-flight
   request per team. Failed updates retain prior orders; round/roster changes invalidate
   old replies. Repeated polls must not repeat round-start announcements.
 - Keep API requests outside the engine thread. Never send entity pointers. Omniscient world packets stay in the local
