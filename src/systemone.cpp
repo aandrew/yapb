@@ -1060,15 +1060,17 @@ bool SystemOne::HoldPosition (Bot *bot) const {
   };
   if (game.Time () >= game_state.GetRoundStartTime ()) {
     if (identity.hold_phase == 0 && game.Time () >= identity.hold_next) {
-      // Brief shoulder peeks, with pauses between them, instead of an endless strafe.
-      const float width = ystl::rg (24.0f, 48.0f);
+      // Check ahead of cover as well as sideways, then return to the assigned hold.
+      const float width = ystl::rg (32.0f, 56.0f);
+      const float advance = IsCarrier (IdentityFor (bot->index_)) ? 0.0f : ystl::rg (40.0f, 72.0f);
       const float sign = ystl::rg (0, 1) == 0 ? -1.0f : 1.0f;
-      const auto candidate = anchor + side * width * sign;
-      const auto other = anchor - side * width * sign;
-      if (clear_step (candidate) || clear_step (other)) {
-        identity.hold_target = clear_step (candidate) ? candidate : other;
+      const auto candidate = anchor + direction * advance + side * width * sign;
+      const auto other = anchor + direction * advance - side * width * sign;
+      const auto shoulder = anchor + side * width * sign;
+      if (clear_step (candidate) || clear_step (other) || clear_step (shoulder)) {
+        identity.hold_target = clear_step (candidate) ? candidate : (clear_step (other) ? other : shoulder);
         identity.hold_phase = 1;
-        identity.hold_until = game.Time () + 1.1f;
+        identity.hold_until = game.Time () + 1.6f;
       }
       else { identity.hold_next = game.Time () + ystl::rg (0.7f, 1.4f); }
     }

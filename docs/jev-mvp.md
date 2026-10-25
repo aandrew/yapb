@@ -229,3 +229,8 @@ T players prioritize recovering dropped C4 together, then reassess A/B using obs
 Map-specific opening strategy books live under `strategy/<map>/T/config.json` and `strategy/<map>/CT/config.json`; see `strategy/README.md` for the schema and limits. Files reload each decision and give Jev circumstances and eligible validated choices, including pistol strategies. They do not add unsupported native actions.
 
 Bridge verification: 33 tests across test.mjs, t-approach.test.mjs, objectives.test.mjs and orchestrator.test.mjs. Native standalone CT/economy/MR12/T strategy checks and the local DLL build pass. Physical movement and strategy quality still need human playtesting.
+
+
+### Forward checking holds
+
+Dust2 Long defense holds now sit two connected graph steps farther toward Long doors (nodes 389/448), with aim directed down the approach. Short holds move from the rear platform to the first stair step (582/593), facing down Short. The T A stage-one entry advances one connected step (830). Both sides use short forward-diagonal checks as well as shoulder peeks, retaining body/teammate clearance and floor-height checks. Carriers keep lateral peeks without the extra forward step. These are bounded local checks and revised standing points, not a new caller strategy. The DLL build and 33 bridge tests pass; corner visibility and tactical quality require live playtesting.

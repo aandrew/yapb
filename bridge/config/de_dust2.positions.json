@@ -262,14 +262,14 @@
       "site": "A",
       "zone": "S",
       "origin": [
-        423.53,
-        2139.41,
-        132.03
+        283.3,
+        1753.15,
+        116.03
       ],
       "look_at": [
-        1152,
-        1800,
-        144
+        283,
+        1450,
+        48
       ],
       "radius": 48,
       "stance": "stand",
@@ -277,7 +277,7 @@
         "support",
         "awper"
       ],
-      "source_waypoint": 613,
+      "source_waypoint": 582,
       "stage": -1,
       "crunch_group": "S"
     },
@@ -286,14 +286,14 @@
       "site": "A",
       "zone": "S",
       "origin": [
-        366.19,
-        2139.85,
-        132.03
+        367.96,
+        1753.32,
+        116.03
       ],
       "look_at": [
-        1152,
-        1800,
-        144
+        283,
+        1450,
+        48
       ],
       "radius": 48,
       "stance": "stand",
@@ -301,7 +301,7 @@
         "entry",
         "support"
       ],
-      "source_waypoint": 611,
+      "source_waypoint": 593,
       "stage": -1,
       "crunch_group": "S"
     },
@@ -310,14 +310,14 @@
       "site": "A",
       "zone": "L",
       "origin": [
-        1459.03,
-        1390.27,
+        1460.1,
+        1132.02,
         36.03
       ],
       "look_at": [
-        1152,
-        1800,
-        144
+        1100,
+        600,
+        48
       ],
       "radius": 48,
       "stance": "stand",
@@ -325,7 +325,7 @@
         "awper",
         "support"
       ],
-      "source_waypoint": 387,
+      "source_waypoint": 389,
       "stage": -1,
       "crunch_group": "L"
     },
@@ -334,14 +334,14 @@
       "site": "A",
       "zone": "L",
       "origin": [
-        1357.15,
-        1391.45,
+        1358.37,
+        1135.34,
         36.03
       ],
       "look_at": [
-        1152,
-        1800,
-        144
+        1100,
+        600,
+        48
       ],
       "radius": 48,
       "stance": "stand",
@@ -349,7 +349,7 @@
         "lurker",
         "support"
       ],
-      "source_waypoint": 446,
+      "source_waypoint": 448,
       "stage": -1,
       "crunch_group": "L"
     },
@@ -469,8 +469,8 @@
       "zone": "X",
       "stage": 1,
       "origin": [
-        571.81,
-        455.16,
+        574.08,
+        562.68,
         36.03
       ],
       "look_at": [
@@ -483,7 +483,7 @@
       "preferred_roles": [
         "entry"
       ],
-      "source_waypoint": 837
+      "source_waypoint": 830
     },
     {
       "id": "t_a_1_support",
