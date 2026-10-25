@@ -8,6 +8,8 @@ transitions apply locally immediately, then ask Jev to refine placement.
 
 ## Run locally
 
+New installation? Follow the [Windows installation guide](installation.md), including the required personal OpenRouter key in `bridge/.env`. The AI extension currently supports Dust2 only.
+
 Prerequisites: Steam Counter-Strike 1.6 with HLDS, Git, Python/pip, Node 24 and an
 OpenRouter key. No GPU or Visual Studio installation is needed.
 

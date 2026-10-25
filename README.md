@@ -5,6 +5,16 @@
 
 This fork extends YaPB for a local Counter-Strike 1.6 Dust2 match with stable identities, combat roles, team callers, editable strategies and recorded decisions. Originally built with Jev, it now uses **Perplexity Decider V1.2** (`perplexity/pplx-decider-v1.2`) through OpenRouter's Decisions API, polling **every five seconds per team**.
 
+**Supported map: Dust2 (`de_dust2`) only.** The AI caller strategies, routes, positions and callouts have not been implemented for other maps. Upstream YaPB's broader map support does not imply support in this AI extension.
+
+**New users:** follow the [Windows installation guide](docs/installation.md). You must supply **your own OpenRouter API key** in the local, Git-ignored **`bridge/.env`** file:
+
+```dotenv
+OPENROUTER_API_KEY=your-own-openrouter-api-key
+```
+
+The setup script creates that file from `bridge/.env.example` if it does not already exist. Do not put a real key in the example file or commit it to Git. Restart the bridge/server after changing the key.
+
 ### Architecture and decision making
 
 - **Native bots and local Node bridge:** movement, combat, buying and bomb interactions stay in the game; the bridge makes model requests outside the engine thread.
